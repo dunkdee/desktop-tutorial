@@ -1,319 +1,167 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-  <!-- Core -->
-  <meta charset="utf-8"/>
-  <meta name="viewport" content="width=device-width,initial-scale=1"/>
-  <title>Dominion Healing — AI-Powered Growth Systems</title>
-  <meta name="description" content="AI systems for products, funnels, content, and email—built for impact, engineered for scale."/>
-  <link rel="canonical" href="https://www.dominionhealing.org"/>
+# Fix and re-create the unified installer without syntax errors.
+from pathlib import Path
+import os
 
-  <!-- Open Graph / Twitter -->
-  <meta property="og:title" content="Dominion Healing — AI-Powered Growth Systems"/>
-  <meta property="og:description" content="Products, funnels, content, and outreach—automated. Launch fast, grow profitably."/>
-  <meta property="og:url" content="https://www.dominionhealing.org"/>
-  <meta property="og:type" content="website"/>
-  <meta property="og:image" content="https://images.unsplash.com/photo-1496307042754-b4aa456c4a2d?q=80&w=1600&auto=format&fit=crop"/>
-  <meta name="twitter:card" content="summary_large_image"/>
+base = Path("/mnt/data")
+index_code = (base / "index.py").read_text(encoding="utf-8")
+requirements = (base / "requirements.txt").read_text(encoding="utf-8")
 
-  <!-- Inline SVG Favicon -->
-  <link rel="icon" type="image/svg+xml" href='data:image/svg+xml;utf8,
-    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64">
-      <defs><linearGradient id="g" x1="0" y1="0" x2="1" y2="1">
-        <stop offset="0" stop-color="#3b82f6"/><stop offset="1" stop-color="#1e3a8a"/></linearGradient></defs>
-      <rect width="64" height="64" rx="12" fill="url(%23g)"/>
-      <text x="50%" y="50%" font-size="28" font-family="Inter,Arial,Helvetica,sans-serif"
-            font-weight="800" text-anchor="middle" dominant-baseline="central" fill="white">DH</text>
-    </svg>'/>
+template = r"""#!/usr/bin/env bash
+set -Eeuo pipefail
 
-  <!-- Fonts & Tailwind -->
-  <link rel="preconnect" href="https://fonts.googleapis.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;800&display=swap" rel="stylesheet">
-  <script src="https://cdn.tailwindcss.com"></script>
-  <script>
-    tailwind.config = {
-      theme:{
-        fontFamily:{ sans:['Inter','system-ui','-apple-system','Segoe UI','Roboto','Arial','sans-serif'] },
-        extend:{
-          colors:{ brand:{50:"#eff6ff",100:"#dbeafe",200:"#bfdbfe",300:"#93c5fd",400:"#60a5fa",500:"#3b82f6",600:"#2563eb",700:"#1d4ed8",800:"#1e40af",900:"#1e3a8a"} },
-          boxShadow:{ glow:"0 0 0 1px rgba(255,255,255,.06), 0 10px 40px rgba(16,24,40,.45), inset 0 0 0 1px rgba(255,255,255,.04)" }
-        }
-      }
-    }
-  </script>
-  <style>
-    html{scroll-behavior:smooth}
-    .bg-grid{background-image:radial-gradient(circle at 1px 1px,rgba(255,255,255,.08)1px,transparent 0);background-size:22px 22px}
-    .glass{backdrop-filter:saturate(120%) blur(12px)}
-    .reveal{opacity:0; transform:translateY(16px); transition:opacity .6s ease, transform .6s ease}
-    .reveal.show{opacity:1; transform:none}
-  </style>
+# === Jarvis Dominion — ONE INSTALLER (index + ubuntu) ===
+# Installs system deps, creates /opt/primal_dominion/jarvis_bot,
+# writes index.py + requirements.txt, sets up venv, downloads Vosk model,
+# creates systemd service, and starts Jarvis.
+#
+# Usage:
+#   sudo bash setup_index_ubuntu.sh
+#
+# Optional flags:
+#   --skip-model  : do not download Vosk model (set VOSK_MODEL yourself)
+#   --no-service  : do not create/start the systemd service
+#   --dev         : don't install to /opt, just drop files in $PWD and exit
 
-  <!-- JSON-LD -->
-  <script type="application/ld+json">
-  {"@context":"https://schema.org","@type":"Organization","name":"Dominion Healing","url":"https://www.dominionhealing.org","logo":"https://www.dominionhealing.org/favicon.svg","sameAs":["https://shop.dominionhealing.org"]}
-  </script>
-</head>
-<body class="bg-slate-950 text-white antialiased selection:bg-brand-500/30">
-  <!-- Announcement -->
-  <div class="w-full bg-brand-900/30 border-b border-white/10">
-    <div class="mx-auto max-w-7xl px-4 py-2 text-center text-sm">
-      New: <a class="underline font-semibold" href="https://shop.dominionhealing.org" target="_blank" rel="noopener">shop.dominionhealing.org</a> — instant delivery via Gumroad.
-    </div>
-  </div>
+APP_DIR="/opt/primal_dominion/jarvis_bot"
+SERVICE_NAME="jarvis"
+TARGET_USER="${SUDO_USER:-$(logname 2>/dev/null || echo root)}"
+TARGET_HOME="$(getent passwd "$TARGET_USER" | cut -d: -f6 || echo "/root")"
+VOSK_MODEL_DIR="$TARGET_HOME/models"
+VOSK_MODEL_NAME="vosk-model-small-en-us-0.15"
+VOSK_MODEL_URL="https://alphacephei.com/vosk/models/${VOSK_MODEL_NAME}.zip"
 
-  <!-- Header -->
-  <header class="sticky top-0 z-50 bg-slate-950/70 glass border-b border-white/10">
-    <div class="mx-auto max-w-7xl px-4 py-4 flex items-center justify-between">
-      <a href="/" class="flex items-center gap-3">
-        <img alt="Dominion Healing" class="h-9 w-9 rounded-xl" src='data:image/svg+xml;utf8,
-        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64">
-          <defs><linearGradient id="g" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#3b82f6"/><stop offset="1" stop-color="#1e3a8a"/></linearGradient></defs>
-          <rect width="64" height="64" rx="12" fill="url(%23g)"/>
-          <text x="50%" y="50%" font-size="28" font-family="Inter,Arial" font-weight="800" text-anchor="middle" dominant-baseline="central" fill="white">DH</text>
-        </svg>'/>
-        <div>
-          <p class="font-extrabold leading-none">Dominion Healing</p>
-          <p class="text-[11px] text-slate-400 -mt-0.5">AI-powered growth systems</p>
-        </div>
-      </a>
-      <nav class="hidden md:flex items-center gap-7 text-sm text-slate-300">
-        <a class="hover:text-white" href="#about">About</a>
-        <a class="hover:text-white" href="#solutions">Solutions</a>
-        <a class="hover:text-white" href="#products">Products</a>
-        <a class="hover:text-white" href="#proof">Proof</a>
-        <a class="hover:text-white" href="#faq">FAQ</a>
-        <a class="inline-flex items-center justify-center rounded-xl bg-white text-slate-900 px-4 py-2 font-semibold hover:opacity-90"
-           href="https://shop.dominionhealing.org" target="_blank" rel="noopener">Shop</a>
-      </nav>
-      <button id="mToggle" class="md:hidden rounded-lg border border-white/20 px-3 py-2 text-sm">Menu</button>
-    </div>
-    <div id="mNav" class="md:hidden hidden border-t border-white/10 px-4 pb-4">
-      <div class="flex flex-col gap-3 text-slate-300 text-sm">
-        <a class="hover:text-white" href="#about">About</a>
-        <a class="hover:text-white" href="#solutions">Solutions</a>
-        <a class="hover:text-white" href="#products">Products</a>
-        <a class="hover:text-white" href="#proof">Proof</a>
-        <a class="hover:text-white" href="#faq">FAQ</a>
-        <a class="rounded-lg bg-white text-slate-900 px-4 py-2 font-semibold w-max"
-           href="https://shop.dominionhealing.org" target="_blank" rel="noopener">Shop</a>
-      </div>
-    </div>
-  </header>
+DO_MODEL=1
+DO_SERVICE=1
+DEV_MODE=0
 
-  <!-- Hero -->
-  <section class="relative overflow-hidden">
-    <div class="absolute inset-0 bg-gradient-to-b from-brand-900/40 via-slate-900 to-slate-950"></div>
-    <div class="bg-grid absolute inset-0 opacity-30"></div>
-    <div class="relative mx-auto max-w-7xl px-4 py-20 grid lg:grid-cols-2 gap-12 items-center">
-      <div class="reveal">
-        <h1 class="text-4xl md:text-5xl font-black leading-tight">
-          Build a <span class="text-brand-400">Fortune-500</span> presence with AI that ships while you sleep.
-        </h1>
-        <p class="mt-5 text-slate-300 text-lg">Products, funnels, content, and outreach—automated.</p>
-        <div class="mt-7 flex flex-wrap gap-3">
-          <a href="https://shop.dominionhealing.org" target="_blank" rel="noopener"
-             class="rounded-2xl bg-brand-500 px-6 py-3 font-semibold text-slate-950 hover:bg-brand-400">Start Earning</a>
-          <a href="#solutions" class="rounded-2xl border border-white/20 px-6 py-3 font-semibold hover:bg-white/5">Explore Solutions</a>
-        </div>
-      </div>
-      <div class="relative reveal">
-        <div class="rounded-3xl border border-white/10 bg-white/5 p-4 shadow-glow">
-          <img src="https://images.unsplash.com/photo-1496307042754-b4aa456c4a2d?q=80&w=1600&auto=format&fit=crop"
-               alt="AI dashboards" class="rounded-2xl"/>
-        </div>
-      </div>
-    </div>
-  </section>
+for arg in "$@"; do
+  case "$arg" in
+    --skip-model) DO_MODEL=0 ;;
+    --no-service) DO_SERVICE=0 ;;
+    --dev) DEV_MODE=1 ;;
+    *) echo "Unknown option: $arg" >&2; exit 2;;
+  esac
+done
 
-  <!-- About -->
-  <section id="about" class="mx-auto max-w-7xl px-4 py-16">
-    <h2 class="text-3xl md:text-4xl font-black">Built for impact. Engineered for scale.</h2>
-    <p class="mt-3 text-slate-300 max-w-3xl">We deploy AI systems for products, content, funnels, and email—so you earn while you sleep.</p>
-  </section>
+if [[ $EUID -ne 0 ]]; then
+  echo "Run with sudo: sudo bash setup_index_ubuntu.sh" >&2
+  exit 1
+fi
 
-  <!-- Solutions -->
-  <section id="solutions" class="mx-auto max-w-7xl px-4 pb-4">
-    <h2 class="text-3xl md:text-4xl font-black">Solutions engineered to win</h2>
-    <div class="mt-8 grid md:grid-cols-3 gap-6">
-      <div class="reveal rounded-2xl border border-white/10 bg-white/5 p-6">
-        <h3 class="text-xl font-bold">Digital Products</h3>
-        <p class="mt-2 text-slate-300 text-sm">Guides, templates, and trainings delivered instantly via Gumroad.</p>
-      </div>
-      <div class="reveal rounded-2xl border border-white/10 bg-white/5 p-6">
-        <h3 class="text-xl font-bold">AI Content Engine</h3>
-        <p class="mt-2 text-slate-300 text-sm">Clips, posts, and emails scheduled across platforms, 24/7.</p>
-      </div>
-      <div class="reveal rounded-2xl border border-white/10 bg-white/5 p-6">
-        <h3 class="text-xl font-bold">Funnels & Email</h3>
-        <p class="mt-2 text-slate-300 text-sm">Lead magnets, sequences, segmentation, deliverability best practices.</p>
-      </div>
-    </div>
-  </section>
+echo "[1/8] Installing Ubuntu packages..."
+export DEBIAN_FRONTEND=noninteractive
+apt-get update -y
+apt-get install -y python3 python3-venv python3-pip python3-dev build-essential \
+                   portaudio19-dev ffmpeg libsndfile1 unzip wget
 
-  <!-- Products -->
-  <section id="products" class="mx-auto max-w-7xl px-4 py-16">
-    <h2 class="text-3xl md:text-4xl font-black">Featured Products</h2>
-    <p class="mt-3 text-slate-300">Instant delivery via Gumroad.</p>
-    <div id="productGrid" class="mt-8 grid gap-6 md:grid-cols-3"></div>
-  </section>
+if [[ "$DEV_MODE" -eq 1 ]]; then
+  echo "[DEV] Writing index.py and requirements.txt to $PWD ..."
+  cat > index.py <<'PYCODE'
+__INDEX_CODE__
+PYCODE
 
-  <!-- Proof -->
-  <section id="proof" class="mx-auto max-w-7xl px-4 py-16">
-    <h2 class="text-3xl md:text-4xl font-black">What customers say</h2>
-    <div id="testiGrid" class="mt-8 grid md:grid-cols-3 gap-6"></div>
-  </section>
+  cat > requirements.txt <<'REQS'
+__REQUIREMENTS__
+REQS
 
-  <!-- Pricing -->
-  <section id="pricing" class="mx-auto max-w-7xl px-4 py-16">
-    <h2 class="text-3xl md:text-4xl font-black">Pricing</h2>
-    <div class="mt-8 grid md:grid-cols-3 gap-6">
-      <div class="reveal rounded-2xl border border-white/10 bg-white/5 p-6">
-        <div class="text-sm text-slate-400">Starter</div>
-        <div class="mt-1 text-3xl font-black">$9</div>
-        <ul class="mt-4 space-y-2 text-sm text-slate-300"><li>One product</li><li>Basic funnel</li><li>Email capture</li></ul>
-        <a href="https://shop.dominionhealing.org" target="_blank" rel="noopener"
-           class="mt-6 inline-flex rounded-xl bg-white text-slate-900 px-4 py-2 font-semibold">Get Started</a>
-      </div>
-      <div class="reveal rounded-2xl border border-brand-400/40 bg-white/5 p-6 ring-1 ring-brand-400/30">
-        <div class="text-sm text-brand-300">Growth</div>
-        <div class="mt-1 text-3xl font-black">$29</div>
-        <ul class="mt-4 space-y-2 text-sm text-slate-300"><li>3 products</li><li>Automation templates</li><li>Weekly content packs</li></ul>
-        <a href="https://shop.dominionhealing.org" target="_blank" rel="noopener"
-           class="mt-6 inline-flex rounded-xl bg-brand-500 text-slate-950 px-4 py-2 font-semibold hover:bg-brand-400">Scale Up</a>
-      </div>
-      <div class="reveal rounded-2xl border border-white/10 bg-white/5 p-6">
-        <div class="text-sm text-slate-400">Pro</div>
-        <div class="mt-1 text-3xl font-black">$99</div>
-        <ul class="mt-4 space-y-2 text-sm text-slate-300"><li>Full library access</li><li>Advanced funnels</li><li>Priority support</li></ul>
-        <a href="https://shop.dominionhealing.org" target="_blank" rel="noopener"
-           class="mt-6 inline-flex rounded-xl border border-white/20 px-4 py-2 font-semibold hover:bg-white/5">Contact Sales</a>
-      </div>
-    </div>
-  </section>
+  echo "Dev mode complete. Activate a venv and pip install -r requirements.txt, then run: python index.py"
+  exit 0
+fi
 
-  <!-- Email capture -->
-  <section id="contact" class="mx-auto max-w-7xl px-4 pb-20">
-    <div class="reveal rounded-3xl border border-white/10 bg-gradient-to-br from-brand-800/30 to-slate-900 p-8">
-      <h3 class="text-2xl md:text-3xl font-black">Join the insider list</h3>
-      <p class="mt-2 text-slate-300 max-w-2xl">Weekly strategy drops, product launches, and behind-the-scenes.</p>
-      <form id="subscribeForm" class="mt-6 flex flex-col sm:flex-row gap-3" method="POST">
-        <input required name="email" type="email" placeholder="you@domain.com"
-               class="flex-1 rounded-xl bg-white text-slate-900 px-4 py-3 placeholder-slate-500"/>
-        <button class="rounded-xl bg-brand-500 px-6 py-3 font-semibold text-slate-950 hover:bg-brand-400" type="submit">
-          Subscribe
-        </button>
-      </form>
-      <p class="mt-2 text-xs text-slate-400">By subscribing, you agree to our <a class="underline" href="#terms">Terms</a> and <a class="underline" href="#privacy">Privacy</a>.</p>
-    </div>
-  </section>
+echo "[2/8] Creating app directory at $APP_DIR ..."
+mkdir -p "$APP_DIR"
 
-  <!-- Footer -->
-  <footer class="mx-auto max-w-7xl px-4 pb-16">
-    <div class="grid md:grid-cols-4 gap-8 border-t border-white/10 pt-8 text-sm text-slate-300">
-      <div><div class="font-extrabold text-white">Dominion Healing</div><p class="mt-2 text-slate-400">Built for impact. Engineered for scale.</p></div>
-      <div><div class="font-semibold text-white">Company</div>
-        <ul class="mt-2 space-y-2"><li><a class="hover:text-white" href="#about">About</a></li><li><a class="hover:text-white" href="#solutions">Solutions</a></li><li><a class="hover:text-white" href="#products">Products</a></li></ul>
-      </div>
-      <div><div class="font-semibold text-white">Resources</div>
-        <ul class="mt-2 space-y-2"><li><a class="hover:text-white" href="https://shop.dominionhealing.org" target="_blank" rel="noopener">Shop</a></li><li><a class="hover:text-white" href="#faq">FAQ</a></li><li><a class="hover:text-white" href="#contact">Contact</a></li></ul>
-      </div>
-      <div><div class="font-semibold text-white">Legal</div>
-        <ul class="mt-2 space-y-2"><li><a class="hover:text-white" href="#terms">Terms</a></li><li><a class="hover:text-white" href="#privacy">Privacy</a></li></ul>
-      </div>
-    </div>
-    <p class="mt-8 text-xs text-slate-500">© <span id="year"></span> Dominion Healing. All rights reserved.</p>
-  </footer>
+echo "[3/8] Writing index.py and requirements.txt..."
+install -m 0644 /dev/stdin "$APP_DIR/index.py" <<'PYCODE'
+__INDEX_CODE__
+PYCODE
 
-  <!-- Terms (in-page) -->
-  <section id="terms" class="mx-auto max-w-4xl px-4 pb-14">
-    <div class="rounded-2xl border border-white/10 bg-white/5 p-6">
-      <h2 class="text-2xl font-black">Terms & Conditions</h2>
-      <p class="mt-2 text-slate-300 text-sm">Last updated: <span class="terms-date"></span></p>
-      <div class="mt-4 space-y-3 text-sm text-slate-300">
-        <p>By using this site, you agree to these Terms. Digital products are delivered via Gumroad. Unauthorized redistribution is prohibited.</p>
-        <p><strong>Refunds:</strong> 14-day refund if not fully consumed/downloaded beyond 20% (unless otherwise stated).</p>
-        <p><strong>Contact:</strong> support@dominionhealing.org</p>
-      </div>
-    </div>
-  </section>
+install -m 0644 /dev/stdin "$APP_DIR/requirements.txt" <<'REQS'
+__REQUIREMENTS__
+REQS
 
-  <!-- Privacy (in-page) -->
-  <section id="privacy" class="mx-auto max-w-4xl px-4 pb-24">
-    <div class="rounded-2xl border border-white/10 bg-white/5 p-6">
-      <h2 class="text-2xl font-black">Privacy Policy</h2>
-      <p class="mt-2 text-slate-300 text-sm">Last updated: <span class="privacy-date"></span></p>
-      <div class="mt-4 space-y-3 text-sm text-slate-300">
-        <p>We collect email and basic analytics to improve products and communication. Purchases are processed by Gumroad; email by Brevo/Formspree. You can unsubscribe anytime.</p>
-        <p>We do not sell personal data. Requests: support@dominionhealing.org</p>
-      </div>
-    </div>
-  </section>
+echo "[4/8] Creating Python venv and installing deps..."
+if [[ ! -d "$APP_DIR/venv" ]]; then
+  python3 -m venv "$APP_DIR/venv"
+fi
+source "$APP_DIR/venv/bin/activate"
+pip install --upgrade pip wheel setuptools
+pip install -r "$APP_DIR/requirements.txt"
 
-  <!-- ===== CONFIG + LOGIC (EDIT THE CONFIG ONLY) ===== -->
-  <script defer>
-  /* === CONFIG (edit these) === */
-  const GA_ID = ""; // e.g. "G-XXXXXXX" or leave ""
-  const SUBMIT_ENDPOINT = "https://formspree.io/f/yourid"; // put your Formspree endpoint here
-  const PRODUCTS = [
-    { title:"Mindset Reset Pack", price:"$19", image:"https://images.unsplash.com/photo-1517245386807-bb43f82c33c4?w=800", badge:"Best Seller", url:"https://shop.dominionhealing.org/l/YOUR-PRODUCT-1" },
-    { title:"30-Day Discipline System", price:"$29", image:"https://images.unsplash.com/photo-1515168833906-d2a3b82b302a?w=800", badge:"New", url:"https://shop.dominionhealing.org/l/YOUR-PRODUCT-2" },
-    { title:"Breath & Healing Audio", price:"$9",  image:"https://images.unsplash.com/photo-1520975922112-c2f2a2360bd1?w=800", badge:"Audio", url:"https://shop.dominionhealing.org/l/YOUR-PRODUCT-3" }
-  ];
+if [[ "$DO_MODEL" -eq 1 ]]; then
+  echo "[5/8] Downloading Vosk model to $VOSK_MODEL_DIR/$VOSK_MODEL_NAME ..."
+  mkdir -p "$VOSK_MODEL_DIR"
+  cd "$VOSK_MODEL_DIR"
+  if [[ ! -d "$VOSK_MODEL_NAME" ]]; then
+    wget -q --show-progress "$VOSK_MODEL_URL"
+    unzip -q "${VOSK_MODEL_NAME}.zip"
+  fi
+  chown -R "$TARGET_USER":"$TARGET_USER" "$VOSK_MODEL_DIR"
+else
+  echo "[5/8] Skipping Vosk model download (--skip-model)"
+fi
 
-  /* === DO NOT EDIT BELOW === */
-  const TESTIMONIALS=[{quote:"First sale in 48 hours.",author:"J. Carter"},{quote:"Saved me 10+ hours weekly.",author:"M. Nguyen"},{quote:"Finally consistent output.",author:"R. Diaz"}];
-  const FAQS=[{q:"How fast can I launch?",a:"Minutes. Connect products, publish, and go."},{q:"Do I need a team?",a:"No. Automations handle creation, scheduling, and basic ops."},{q:"How do I get paid?",a:"Gumroad handles checkout and payouts to your account."},{q:"Email deliverability?",a:"Authenticate your domain in Brevo (DKIM + SPF) for inbox placement."}];
-  const $=s=>document.querySelector(s);
+echo "[6/8] Ensuring environment files exist..."
+mkdir -p "$TARGET_HOME/.jarvis"
+if [[ ! -f "$TARGET_HOME/.jarvis/.env" ]]; then
+  echo 'OPENAI_API_KEY=' > "$TARGET_HOME/.jarvis/.env"
+  chown "$TARGET_USER":"$TARGET_USER" "$TARGET_HOME/.jarvis/.env"
+  chmod 600 "$TARGET_HOME/.jarvis/.env"
+fi
+if [[ ! -f "$APP_DIR/.env" ]]; then
+  echo 'OPENAI_API_KEY=' > "$APP_DIR/.env"
+  chmod 600 "$APP_DIR/.env"
+fi
 
-  document.addEventListener('DOMContentLoaded',()=>{
-    // Year & dates
-    const y=$("#year"); if(y) y.textContent=new Date().getFullYear();
-    document.querySelectorAll('.terms-date,.privacy-date').forEach(el=>el.textContent=new Date().toLocaleDateString());
+echo "[7/8] Creating systemd service (user=$SERVICE_NAME@$TARGET_USER) ..."
+if [[ "$DO_SERVICE" -eq 1 ]]; then
+  cat > /etc/systemd/system/${SERVICE_NAME}@.service <<'UNIT'
+[Unit]
+Description=Jarvis Dominion Voice AI
+After=sound.target network-online.target
+Wants=network-online.target
 
-    // Mobile nav
-    const t=$("#mToggle"), m=$("#mNav"); if(t&&m){t.addEventListener('click',()=>m.classList.toggle('hidden'));}
+[Service]
+Type=simple
+User=%i
+Environment=VOSK_MODEL=/home/%i/models/vosk-model-small-en-us-0.15
+EnvironmentFile=-/home/%i/.jarvis/.env
+EnvironmentFile=-/opt/primal_dominion/jarvis_bot/.env
+WorkingDirectory=/opt/primal_dominion/jarvis_bot
+ExecStart=/opt/primal_dominion/jarvis_bot/venv/bin/python /opt/primal_dominion/jarvis_bot/index.py
+Restart=on-failure
+RestartSec=3
+StandardOutput=append:/opt/primal_dominion/jarvis_bot/jarvis.log
+StandardError=append:/opt/primal_dominion/jarvis_bot/jarvis.log
 
-    // Reveal on scroll
-    const io=new IntersectionObserver((ents)=>{ents.forEach(e=>{if(e.isIntersecting)e.target.classList.add('show')})},{threshold:.15});
-    document.querySelectorAll('.reveal').forEach(el=>io.observe(el));
+[Install]
+WantedBy=default.target
+UNIT
 
-    // Products
-    const grid=$("#productGrid"); if(grid) grid.innerHTML=PRODUCTS.map(p=>`
-      <a href="${p.url}" target="_blank" rel="noopener" class="rounded-2xl border border-white/10 bg-white/5 hover:bg-white/10 transition p-4 block">
-        <div class="aspect-[16/10] overflow-hidden rounded-xl mb-4"><img src="${p.image}" alt="${p.title}" class="w-full h-full object-cover"/></div>
-        <div class="flex items-center justify-between"><h3 class="text-lg font-bold">${p.title}</h3><span class="text-sm bg-white text-slate-900 px-2 py-0.5 rounded">${p.price}</span></div>
-        ${p.badge?`<div class="mt-2 text-xs text-brand-300">${p.badge}</div>`:''}
-        <div class="mt-4 inline-flex items-center gap-1 text-sm text-brand-300">View →</div>
-      </a>`).join('');
+  systemctl daemon-reload
+  systemctl enable ${SERVICE_NAME}@"$TARGET_USER"
+  systemctl restart ${SERVICE_NAME}@"$TARGET_USER" || systemctl start ${SERVICE_NAME}@"$TARGET_USER"
+  echo "Service status:"
+  systemctl --no-pager --full status ${SERVICE_NAME}@"$TARGET_USER" || true
+else
+  echo "[skip] --no-service was set; not creating/starting systemd unit."
+fi
 
-    // Testimonials
-    const tg=$("#testiGrid"); if(tg) tg.innerHTML=TESTIMONIALS.map(t=>`
-      <div class="rounded-2xl bg-white/5 p-6"><p class="text-slate-300">“${t.quote}”</p><div class="mt-3 text-sm text-slate-400">— ${t.author}</div></div>`).join('');
+echo "[8/8] Done."
+echo
+echo "Run manually (without service):"
+echo "  source $APP_DIR/venv/bin/activate"
+echo "  VOSK_MODEL=$VOSK_MODEL_DIR/$VOSK_MODEL_NAME python $APP_DIR/index.py"
+echo
+echo "If you used the service, tail logs:"
+echo "  sudo journalctl -u ${SERVICE_NAME}@$TARGET_USER -f"
+"""
 
-    // FAQ
-    const fg=$("#faq .grid, #faqGrid"); if(fg) fg.innerHTML=FAQS.map(f=>`
-      <div><h4 class="font-semibold text-white">${f.q}</h4><p class="mt-2 text-sm text-slate-300">${f.a}</p></div>`).join('');
+# Perform placeholder substitution
+installer = template.replace("__INDEX_CODE__", index_code).replace("__REQUIREMENTS__", requirements)
 
-    // Email form wiring (Formspree)
-    const form=$("#subscribeForm");
-    if(form){
-      if(SUBMIT_ENDPOINT) form.action=SUBMIT_ENDPOINT;
-      form.method="POST";
-    }
+setup_path = base / "setup_index_ubuntu.sh"
+setup_path.write_text(installer, encoding="utf-8")
+os.chmod(setup_path, 0o755)
 
-    // GA
-    if(GA_ID){
-      const s1=document.createElement("script"); s1.async=true; s1.src=`https://www.googletagmanager.com/gtag/js?id=${GA_ID}`; document.head.appendChild(s1);
-      const s2=document.createElement("script"); s2.innerHTML=`window.dataLayer=window.dataLayer||[];function gtag(){dataLayer.push(arguments);}gtag('js', new Date());gtag('config','${GA_ID}');`; document.head.appendChild(s2);
-    }
-  });
-
-  // Future AI hook (optional backend)
-  async function sendToAgent(payload){
-    try{ const r=await fetch("/api/agent",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(payload)}); return r.ok; }
-    catch{ return false; }
-  }
-  </script>
-</body>
-</html>
+str(setup_path)
