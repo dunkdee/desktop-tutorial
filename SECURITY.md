@@ -1,0 +1,3 @@
+- Secrets live in GitHub Environments (staging/prod).
+- No secrets in code or commits.
+- Report security issues via private email: security@dominionhealing.org

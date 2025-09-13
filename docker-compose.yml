@@ -1,0 +1,84 @@
+version: "3.9"
+
+services:
+  caddy:
+    image: caddy:2
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - caddy_data:/data
+      - caddy_config:/config
+      - ./deploy/Caddyfile:/etc/caddy/Caddyfile:ro
+    environment:
+      - PRIMARY_DOMAIN=${PRIMARY_DOMAIN}
+
+  frontend:
+    build: ./apps/frontend
+    restart: unless-stopped
+    environment:
+      - NEXT_PUBLIC_API_BASE=https://api.${PRIMARY_DOMAIN}
+      - NODE_ENV=production
+    depends_on:
+      - api
+
+  api:
+    build: ./apps/api
+    restart: unless-stopped
+    environment:
+      - APP_ENV=${APP_ENV}
+      - SENDER_EMAIL=${SENDER_EMAIL}
+      - SENDER_NAME=${SENDER_NAME}
+      - BREVO_API_KEY=${BREVO_API_KEY}
+      - OANDA_API_KEY=${OANDA_API_KEY}
+      - BINANCE_API_KEY=${BINANCE_API_KEY}
+      - BINANCE_API_SECRET=${BINANCE_API_SECRET}
+      - COINGECKO_API_KEY=${COINGECKO_API_KEY}
+      - GUMROAD_TOKEN=${GUMROAD_TOKEN}
+      - TIKTOK_CLIENT_KEY=${TIKTOK_CLIENT_KEY}
+      - TIKTOK_CLIENT_SECRET=${TIKTOK_CLIENT_SECRET}
+      - YOUTUBE_CLIENT_ID=${YOUTUBE_CLIENT_ID}
+      - YOUTUBE_CLIENT_SECRET=${YOUTUBE_CLIENT_SECRET}
+      - GOOGLE_MAPS_KEY=${GOOGLE_MAPS_KEY}
+      - REDIS_URL=redis://redis:6379/0
+      - QDRANT_URL=http://qdrant:6333
+    depends_on:
+      - redis
+      - qdrant
+
+  jarvis:
+    build: ./apps/jarvis
+    restart: unless-stopped
+    environment:
+      - APP_ENV=${APP_ENV}
+      - REDIS_URL=redis://redis:6379/1
+      - QDRANT_URL=http://qdrant:6333
+      - BREVO_API_KEY=${BREVO_API_KEY}
+      - OANDA_API_KEY=${OANDA_API_KEY}
+      - BINANCE_API_KEY=${BINANCE_API_KEY}
+      - BINANCE_API_SECRET=${BINANCE_API_SECRET}
+      - COINGECKO_API_KEY=${COINGECKO_API_KEY}
+      - GUMROAD_TOKEN=${GUMROAD_TOKEN}
+      - TIKTOK_CLIENT_KEY=${TIKTOK_CLIENT_KEY}
+      - TIKTOK_CLIENT_SECRET=${TIKTOK_CLIENT_SECRET}
+      - YOUTUBE_CLIENT_ID=${YOUTUBE_CLIENT_ID}
+      - YOUTUBE_CLIENT_SECRET=${YOUTUBE_CLIENT_SECRET}
+    depends_on:
+      - redis
+      - qdrant
+
+  redis:
+    image: redis:7-alpine
+    restart: unless-stopped
+
+  qdrant:
+    image: qdrant/qdrant:latest
+    restart: unless-stopped
+    volumes:
+      - qdrant_data:/qdrant/storage
+
+volumes:
+  caddy_data:
+  caddy_config:
+  qdrant_data:

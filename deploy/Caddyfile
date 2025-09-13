@@ -1,0 +1,22 @@
+{
+  email you@${PRIMARY_DOMAIN}
+  acme_ca https://acme-v02.api.letsencrypt.org/directory
+}
+
+${PRIMARY_DOMAIN} {
+  encode gzip
+  handle_path /api/* {
+    reverse_proxy api:8000
+  }
+  reverse_proxy frontend:3000
+}
+
+api.${PRIMARY_DOMAIN} {
+  encode gzip
+  reverse_proxy api:8000
+}
+
+app.${PRIMARY_DOMAIN} {
+  encode gzip
+  reverse_proxy frontend:3000
+}
