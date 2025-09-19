@@ -1,16 +1,27 @@
-name: Deploy (prod)
+name: Deploy Dominion Ark
 
 on:
   push:
-    branches: [main]
-  workflow_dispatch:
+    branches: [ "main" ]
 
 jobs:
   deploy:
     runs-on: ubuntu-latest
+
     steps:
-      - name: Checkout code
-        uses: actions/checkout@v2
+    - name: Checkout repo
+      uses: actions/checkout@v3
 
-      # Add your deployment steps here
+    - name: Set up environment
+      run: |
+        touch .env
+        echo "APP_ENV=production" >> .env
+        echo "APP_PORT=8080" >> .env
+        echo "TIKTOK_APP_ID=${{ secrets.TIKTOK_APP_ID }}" >> .env
+        echo "TIKTOK_CLIENT_ID=${{ secrets.TIKTOK_CLIENT_ID }}" >> .env
+        echo "TIKTOK_CLIENT_SECRET=${{ secrets.TIKTOK_CLIENT_SECRET }}" >> .env
+        echo "TIKTOK_REDIRECT_URI=${{ secrets.TIKTOK_REDIRECT_URI }}" >> .env
 
+    - name: Build & Deploy
+      run: |
+        docker compose -f docker-compose.yml up -d --build
