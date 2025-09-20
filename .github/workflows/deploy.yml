@@ -1,27 +1,123 @@
-name: Deploy Dominion Ark
+name: GCP Build + Mirror Secrets + Push
 
 on:
+  workflow_dispatch:
   push:
     branches: [ "main" ]
 
 jobs:
-  deploy:
+  build-and-push:
     runs-on: ubuntu-latest
-
+    permissions:
+      contents: read
+      id-token: write
+    env:
+      PROJECT_ID: ${{ secrets.GCP_PROJECT_ID }}
+      REGION: ${{ secrets.GCP_REGION }}
+      AR_HOST: ${{ secrets.GCP_REGION }}-docker.pkg.dev
+      AR_REPO: dominion
+      ENV_SECRET_NAME: dominion-env
     steps:
-    - name: Checkout repo
-      uses: actions/checkout@v3
+      - name: Checkout
+        uses: actions/checkout@v4
 
-    - name: Set up environment
-      run: |
-        touch .env
-        echo "APP_ENV=production" >> .env
-        echo "APP_PORT=8080" >> .env
-        echo "TIKTOK_APP_ID=${{ secrets.TIKTOK_APP_ID }}" >> .env
-        echo "TIKTOK_CLIENT_ID=${{ secrets.TIKTOK_CLIENT_ID }}" >> .env
-        echo "TIKTOK_CLIENT_SECRET=${{ secrets.TIKTOK_CLIENT_SECRET }}" >> .env
-        echo "TIKTOK_REDIRECT_URI=${{ secrets.TIKTOK_REDIRECT_URI }}" >> .env
+      - name: Setup gcloud
+        uses: google-github-actions/setup-gcloud@v2
+        with:
+          project_id: ${{ secrets.GCP_PROJECT_ID }}
+          service_account_key: ${{ secrets.GCP_SA_KEY }}
 
-    - name: Build & Deploy
-      run: |
-        docker compose -f docker-compose.yml up -d --build
+      - name: Enable AR docker auth
+        run: |
+          gcloud auth configure-docker ${AR_HOST} --quiet
+
+      - name: Ensure Artifact Registry repo exists
+        run: |
+          gcloud artifacts repositories describe "$AR_REPO" --location "$REGION" \
+          || gcloud artifacts repositories create "$AR_REPO" \
+               --repository-format=docker --location="$REGION" --description="Dominion images"
+
+      - name: Compose .env from GitHub secrets and upload to Secret Manager
+        env:
+          DOMAIN: ${{ secrets.DOMAIN }}
+          APP_SECRET_KEY: ${{ secrets.APP_SECRET_KEY }}
+          YOUTUBE_CLIENT_ID: ${{ secrets.YOUTUBE_CLIENT_ID }}
+          YOUTUBE_CLIENT_SECRET: ${{ secrets.YOUTUBE_CLIENT_SECRET }}
+          YOUTUBE_ACCESS_TOKEN: ${{ secrets.YOUTUBE_ACCESS_TOKEN }}
+          YOUTUBE_REFRESH_TOKEN: ${{ secrets.YOUTUBE_REFRESH_TOKEN }}
+          TIKTOK_CLIENT_KEY: ${{ secrets.TIKTOK_CLIENT_KEY }}
+          TIKTOK_CLIENT_SECRET: ${{ secrets.TIKTOK_CLIENT_SECRET }}
+          TIKTOK_ACCESS_TOKEN: ${{ secrets.TIKTOK_ACCESS_TOKEN }}
+          GUMROAD_TOKEN: ${{ secrets.GUMROAD_TOKEN }}
+          BREVO_API_KEY: ${{ secrets.BREVO_API_KEY }}
+          OANDA_API_KEY: ${{ secrets.OANDA_API_KEY }}
+          BINANCE_API_KEY: ${{ secrets.BINANCE_API_KEY }}
+          BINANCE_API_SECRET: ${{ secrets.BINANCE_API_SECRET }}
+          SMTP_HOST: ${{ secrets.SMTP_HOST }}
+          SMTP_PORT: ${{ secrets.SMTP_PORT }}
+          SMTP_USER: ${{ secrets.SMTP_USER }}
+          SMTP_PASS: ${{ secrets.SMTP_PASS }}
+          SENDER_EMAIL: ${{ secrets.SENDER_EMAIL }}
+        run: |
+          set -e
+          cat > .env <<EOF
+ENVIRONMENT=production
+DOMAIN=${DOMAIN}
+APP_PORT=8080
+SECRET_KEY=${APP_SECRET_KEY}
+
+# DB defaults (local Postgres in compose)
+POSTGRES_USER=dominion
+POSTGRES_PASSWORD=dominion_pass
+POSTGRES_DB=dominion_db
+REDIS_URL=redis://redis:6379/0
+
+# YouTube / Google
+YOUTUBE_OAUTH_CLIENT_ID=${YOUTUBE_CLIENT_ID}
+YOUTUBE_OAUTH_CLIENT_SECRET=${YOUTUBE_CLIENT_SECRET}
+YOUTUBE_ACCESS_TOKEN=${YOUTUBE_ACCESS_TOKEN}
+YOUTUBE_REFRESH_TOKEN=${YOUTUBE_REFRESH_TOKEN}
+
+# TikTok
+TIKTOK_CLIENT_KEY=${TIKTOK_CLIENT_KEY}
+TIKTOK_CLIENT_SECRET=${TIKTOK_CLIENT_SECRET}
+TIKTOK_ACCESS_TOKEN=${TIKTOK_ACCESS_TOKEN}
+
+# Gumroad, Brevo, OANDA, Binance
+GUMROAD_TOKEN=${GUMROAD_TOKEN}
+BREVO_API_KEY=${BREVO_API_KEY}
+OANDA_API_KEY=${OANDA_API_KEY}
+BINANCE_API_KEY=${BINANCE_API_KEY}
+BINANCE_API_SECRET=${BINANCE_API_SECRET}
+
+# SMTP
+SMTP_HOST=${SMTP_HOST}
+SMTP_PORT=${SMTP_PORT}
+SMTP_USER=${SMTP_USER}
+SMTP_PASS=${SMTP_PASS}
+SENDER_EMAIL=${SENDER_EMAIL}
+
+# AR routing (used by VM)
+GCP_PROJECT_ID=${PROJECT_ID}
+GCP_REGION=${REGION}
+AR_HOST=${AR_HOST}
+AR_REPO=${AR_REPO}
+EOF
+
+          # Create or update Secret Manager secret (single blob .env)
+          gcloud secrets describe "${ENV_SECRET_NAME}" --project "${PROJECT_ID}" >/dev/null 2>&1 \
+          || gcloud secrets create "${ENV_SECRET_NAME}" --replication-policy="automatic" --project "${PROJECT_ID}"
+          gcloud secrets versions add "${ENV_SECRET_NAME}" --data-file=.env --project "${PROJECT_ID}"
+
+      - name: Build & push API image
+        run: |
+          IMAGE="${AR_HOST}/${PROJECT_ID}/${AR_REPO}/dominion-api:latest"
+          docker build -f services/api/Dockerfile -t "$IMAGE" services/api
+          docker push "$IMAGE"
+
+      - name: Build & push Worker image
+        run: |
+          IMAGE="${{ env.AR_HOST }}/${{ env.PROJECT_ID }}/${{ env.AR_REPO }}/dominion-worker:latest"
+          docker build -f services/worker/Dockerfile -t "$IMAGE" services/worker
+          docker push "$IMAGE"
+
