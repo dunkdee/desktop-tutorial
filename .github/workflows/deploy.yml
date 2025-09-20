@@ -22,11 +22,16 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
+      - name: Authenticate to Google Cloud
+        uses: google-github-actions/auth@v2
+        with:
+          credentials_json: ${{ secrets.GCP_SA_KEY }}
+
       - name: Setup gcloud
         uses: google-github-actions/setup-gcloud@v2
         with:
           project_id: ${{ secrets.GCP_PROJECT_ID }}
-          
+
       - name: Enable AR docker auth
         run: gcloud auth configure-docker ${{ env.AR_HOST }} --quiet
 
@@ -40,48 +45,48 @@ jobs:
         run: |
           set -e
           cat > .env <<EOF
-          ENVIRONMENT=production
-          DOMAIN=${{ secrets.DOMAIN }}
-          APP_PORT=8080
-          SECRET_KEY=${{ secrets.APP_SECRET_KEY }}
+ENVIRONMENT=production
+DOMAIN=${{ secrets.DOMAIN }}
+APP_PORT=8080
+SECRET_KEY=${{ secrets.APP_SECRET_KEY }}
 
-          # DB defaults
-          POSTGRES_USER=dominion
-          POSTGRES_PASSWORD=dominion_pass
-          POSTGRES_DB=dominion_db
-          REDIS_URL=redis://redis:6379/0
+# DB defaults
+POSTGRES_USER=dominion
+POSTGRES_PASSWORD=dominion_pass
+POSTGRES_DB=dominion_db
+REDIS_URL=redis://redis:6379/0
 
-          # YouTube / Google
-          YOUTUBE_OAUTH_CLIENT_ID=${{ secrets.YOUTUBE_CLIENT_ID }}
-          YOUTUBE_OAUTH_CLIENT_SECRET=${{ secrets.YOUTUBE_CLIENT_SECRET }}
-          YOUTUBE_ACCESS_TOKEN=${{ secrets.YOUTUBE_ACCESS_TOKEN }}
-          YOUTUBE_REFRESH_TOKEN=${{ secrets.YOUTUBE_REFRESH_TOKEN }}
+# YouTube / Google
+YOUTUBE_OAUTH_CLIENT_ID=${{ secrets.YOUTUBE_CLIENT_ID }}
+YOUTUBE_OAUTH_CLIENT_SECRET=${{ secrets.YOUTUBE_CLIENT_SECRET }}
+YOUTUBE_ACCESS_TOKEN=${{ secrets.YOUTUBE_ACCESS_TOKEN }}
+YOUTUBE_REFRESH_TOKEN=${{ secrets.YOUTUBE_REFRESH_TOKEN }}
 
-          # TikTok
-          TIKTOK_CLIENT_KEY=${{ secrets.TIKTOK_CLIENT_KEY }}
-          TIKTOK_CLIENT_SECRET=${{ secrets.TIKTOK_CLIENT_SECRET }}
-          TIKTOK_ACCESS_TOKEN=${{ secrets.TIKTOK_ACCESS_TOKEN }}
+# TikTok
+TIKTOK_CLIENT_KEY=${{ secrets.TIKTOK_CLIENT_KEY }}
+TIKTOK_CLIENT_SECRET=${{ secrets.TIKTOK_CLIENT_SECRET }}
+TIKTOK_ACCESS_TOKEN=${{ secrets.TIKTOK_ACCESS_TOKEN }}
 
-          # Gumroad, Brevo, OANDA, Binance
-          GUMROAD_TOKEN=${{ secrets.GUMROAD_TOKEN }}
-          BREVO_API_KEY=${{ secrets.BREVO_API_KEY }}
-          OANDA_API_KEY=${{ secrets.OANDA_API_KEY }}
-          BINANCE_API_KEY=${{ secrets.BINANCE_API_KEY }}
-          BINANCE_API_SECRET=${{ secrets.BINANCE_API_SECRET }}
+# Gumroad, Brevo, OANDA, Binance
+GUMROAD_TOKEN=${{ secrets.GUMROAD_TOKEN }}
+BREVO_API_KEY=${{ secrets.BREVO_API_KEY }}
+OANDA_API_KEY=${{ secrets.OANDA_API_KEY }}
+BINANCE_API_KEY=${{ secrets.BINANCE_API_KEY }}
+BINANCE_API_SECRET=${{ secrets.BINANCE_API_SECRET }}
 
-          # SMTP
-          SMTP_HOST=${{ secrets.SMTP_HOST }}
-          SMTP_PORT=${{ secrets.SMTP_PORT }}
-          SMTP_USER=${{ secrets.SMTP_USER }}
-          SMTP_PASS=${{ secrets.SMTP_PASS }}
-          SENDER_EMAIL=${{ secrets.SENDER_EMAIL }}
+# SMTP
+SMTP_HOST=${{ secrets.SMTP_HOST }}
+SMTP_PORT=${{ secrets.SMTP_PORT }}
+SMTP_USER=${{ secrets.SMTP_USER }}
+SMTP_PASS=${{ secrets.SMTP_PASS }}
+SENDER_EMAIL=${{ secrets.SENDER_EMAIL }}
 
-          # AR routing
-          GCP_PROJECT_ID=${{ secrets.GCP_PROJECT_ID }}
-          GCP_REGION=${{ secrets.GCP_REGION }}
-          AR_HOST=${{ env.AR_HOST }}
-          AR_REPO=${{ env.AR_REPO }} 
-          EOF
+# AR routing
+GCP_PROJECT_ID=${{ secrets.GCP_PROJECT_ID }}
+GCP_REGION=${{ secrets.GCP_REGION }}
+AR_HOST=${{ env.AR_HOST }}
+AR_REPO=${{ env.AR_REPO }}
+EOF
           gcloud secrets describe "${{ env.ENV_SECRET_NAME }}" --project "${{ secrets.GCP_PROJECT_ID }}" >/dev/null 2>&1 \
           || gcloud secrets create "${{ env.ENV_SECRET_NAME }}" --replication-policy="automatic" --project "${{ secrets.GCP_PROJECT_ID }}"
           gcloud secrets versions add "${{ env.ENV_SECRET_NAME }}" --data-file=.env --project "${{ secrets.GCP_PROJECT_ID }}"
