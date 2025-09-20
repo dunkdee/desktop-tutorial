@@ -1,4 +1,3 @@
-cat > .github/workflows/deploy.yml <<'YAML'
 name: GCP Build + Mirror Secrets + Push
 
 on:
@@ -104,4 +103,3 @@ EOF
           IMAGE="${{ env.AR_HOST }}/${{ env.PROJECT_ID }}/${{ env.AR_REPO }}/dominion-worker:latest"
           docker build -f services/worker/Dockerfile -t "$IMAGE" services/worker
           docker push "$IMAGE"
-YAML
