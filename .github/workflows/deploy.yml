@@ -1,3 +1,4 @@
+cat > .github/workflows/deploy.yml <<'YAML'
 name: GCP Build + Mirror Secrets + Push
 
 on:
@@ -44,7 +45,7 @@ jobs:
       - name: Compose .env from GitHub secrets and upload to Secret Manager
         run: |
           set -e
-          cat > .env <<EOF
+          cat > .env <<'EOF'
 ENVIRONMENT=production
 DOMAIN=${{ secrets.DOMAIN }}
 APP_PORT=8080
@@ -103,3 +104,4 @@ EOF
           IMAGE="${{ env.AR_HOST }}/${{ env.PROJECT_ID }}/${{ env.AR_REPO }}/dominion-worker:latest"
           docker build -f services/worker/Dockerfile -t "$IMAGE" services/worker
           docker push "$IMAGE"
+YAML
