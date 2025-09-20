@@ -17,6 +17,7 @@ jobs:
       AR_HOST: ${{ secrets.GCP_REGION }}-docker.pkg.dev
       AR_REPO: dominion
       ENV_SECRET_NAME: dominion-env
+
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -82,10 +83,8 @@ jobs:
           AR_HOST=${{ env.AR_HOST }}
           AR_REPO=${{ env.AR_REPO }}
 EOF
-
           gcloud secrets describe "${{ env.ENV_SECRET_NAME }}" --project "${{ secrets.GCP_PROJECT_ID }}" >/dev/null 2>&1 \
           || gcloud secrets create "${{ env.ENV_SECRET_NAME }}" --replication-policy="automatic" --project "${{ secrets.GCP_PROJECT_ID }}"
-
           gcloud secrets versions add "${{ env.ENV_SECRET_NAME }}" --data-file=.env --project "${{ secrets.GCP_PROJECT_ID }}"
 
       - name: Build & push API image
