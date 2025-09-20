@@ -27,7 +27,6 @@ jobs:
         with:
           project_id: ${{ secrets.GCP_PROJECT_ID }}
           
-
       - name: Enable AR docker auth
         run: gcloud auth configure-docker ${{ env.AR_HOST }} --quiet
 
