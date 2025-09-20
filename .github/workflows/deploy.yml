@@ -81,8 +81,8 @@ jobs:
           GCP_PROJECT_ID=${{ secrets.GCP_PROJECT_ID }}
           GCP_REGION=${{ secrets.GCP_REGION }}
           AR_HOST=${{ env.AR_HOST }}
-          AR_REPO=${{ env.AR_REPO }}
-EOF
+          AR_REPO=${{ env.AR_REPO }} 
+          EOF
           gcloud secrets describe "${{ env.ENV_SECRET_NAME }}" --project "${{ secrets.GCP_PROJECT_ID }}" >/dev/null 2>&1 \
           || gcloud secrets create "${{ env.ENV_SECRET_NAME }}" --replication-policy="automatic" --project "${{ secrets.GCP_PROJECT_ID }}"
           gcloud secrets versions add "${{ env.ENV_SECRET_NAME }}" --data-file=.env --project "${{ secrets.GCP_PROJECT_ID }}"
