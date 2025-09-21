@@ -1,0 +1,7 @@
+dominionhealing.org {
+    reverse_proxy api:8000
+    encode zstd gzip
+    log {
+        output file /data/access.log
+    }
+}
