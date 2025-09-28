@@ -4,19 +4,5 @@ services:
   dominionsark-api:
     image: alpine:latest
     container_name: dominionsark-api
-    command: ["echo", "👑 Dominion Ark API placeholder — service coming soon"]
+    command: ["sh", "-c", "while true; do echo '👑 Dominion Ark Baby is alive with secrets loaded'; sleep 30; done"]
     restart: always
-
- caddy:
-    image: caddy:2
-    container_name: dominion-caddy
-    restart: always
-    ports:
-      - "80:80"
-      - "443:443"
-    volumes:
-      - ./Caddyfile:/etc/caddy/Caddyfile:ro
-      - ./caddy_data:/data
-      - ./caddy_config:/config
-    depends_on:
-      - api
