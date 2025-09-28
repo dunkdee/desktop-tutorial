@@ -1,8 +1,31 @@
 version: "3.9"
 
 services:
-  dominionsark-api:
+  baby-api:
+    image: python:3.11-slim
+    container_name: baby-api
+    working_dir: /app
+    volumes:
+      - ./api:/app
+    command: ["sh", "-c", "pip install flask requests && python app.py"]
+    ports:
+      - "8080:8080"
+    restart: always
+    environment:
+      - YOUTUBE_CLIENT_ID=${YOUTUBE_CLIENT_ID}
+      - YOUTUBE_CLIENT_SECRET=${YOUTUBE_CLIENT_SECRET}
+      - YOUTUBE_API_KEY=${YOUTUBE_API_KEY}
+      - GUMROAD_TOKEN=${GUMROAD_TOKEN}
+      - OANDA_API_KEY=${OANDA_API_KEY}
+      - OANDA_ACCOUNT_ID=${OANDA_ACCOUNT_ID}
+      - BINANCE_API_KEY=${BINANCE_API_KEY}
+      - BINANCE_API_SECRET=${BINANCE_API_SECRET}
+      - BREVO_API_KEY=${BREVO_API_KEY}
+      - TIKTOK_CLIENT_ID=${TIKTOK_CLIENT_ID}
+      - TIKTOK_CLIENT_SECRET=${TIKTOK_CLIENT_SECRET}
+
+  baby-logger:
     image: alpine:latest
-    container_name: dominionsark-api
-    command: ["sh", "-c", "while true; do echo '👑 Dominion Ark Baby is alive with secrets loaded'; sleep 30; done"]
+    container_name: baby-logger
+    command: ["sh", "-c", "while true; do echo '👑 Baby is alive, secrets loaded, empire running'; sleep 30; done"]
     restart: always
