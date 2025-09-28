@@ -1,12 +1,11 @@
 services:
   api:
-    build: ./api
+    image: alpine:latest
     container_name: dominionsark-api
+    command: ["echo", "👑 Dominion Ark API placeholder — service coming soon"]
     restart: always
-    expose:
-      - "8000"
 
-  caddy:
+ caddy:
     image: caddy:2
     container_name: dominion-caddy
     restart: always
