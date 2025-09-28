@@ -7,25 +7,38 @@ services:
     working_dir: /app
     volumes:
       - ./api:/app
-    command: ["sh", "-c", "pip install flask requests && python app.py"]
+    command: ["sh", "-c", "pip install --no-cache-dir flask requests && python app.py"]
     ports:
       - "8080:8080"
     restart: always
     environment:
-      - YOUTUBE_CLIENT_ID=${YOUTUBE_CLIENT_ID}
-      - YOUTUBE_CLIENT_SECRET=${YOUTUBE_CLIENT_SECRET}
-      - YOUTUBE_API_KEY=${YOUTUBE_API_KEY}
-      - GUMROAD_TOKEN=${GUMROAD_TOKEN}
-      - OANDA_API_KEY=${OANDA_API_KEY}
-      - OANDA_ACCOUNT_ID=${OANDA_ACCOUNT_ID}
-      - BINANCE_API_KEY=${BINANCE_API_KEY}
-      - BINANCE_API_SECRET=${BINANCE_API_SECRET}
-      - BREVO_API_KEY=${BREVO_API_KEY}
-      - TIKTOK_CLIENT_ID=${TIKTOK_CLIENT_ID}
-      - TIKTOK_CLIENT_SECRET=${TIKTOK_CLIENT_SECRET}
+      YOUTUBE_CLIENT_ID: ${YOUTUBE_CLIENT_ID}
+      YOUTUBE_CLIENT_SECRET: ${YOUTUBE_CLIENT_SECRET}
+      YOUTUBE_API_KEY: ${YOUTUBE_API_KEY}
+      GUMROAD_TOKEN: ${GUMROAD_TOKEN}
+      OANDA_API_KEY: ${OANDA_API_KEY}
+      OANDA_ACCOUNT_ID: ${OANDA_ACCOUNT_ID}
+      BINANCE_API_KEY: ${BINANCE_API_KEY}
+      BINANCE_API_SECRET: ${BINANCE_API_SECRET}
+      BREVO_API_KEY: ${BREVO_API_KEY}
+      TIKTOK_CLIENT_ID: ${TIKTOK_CLIENT_ID}
+      TIKTOK_CLIENT_SECRET: ${TIKTOK_CLIENT_SECRET}
+    healthcheck:
+      test: ["CMD-SHELL", "python -c 'import urllib.request; urllib.request.urlopen(\"http://localhost:8080/\").read(); print(\"OK\")' || exit 1"]
+      interval: 20s
+      timeout: 5s
+      retries: 5
+      start_period: 20s
 
   baby-logger:
     image: alpine:latest
     container_name: baby-logger
-    command: ["sh", "-c", "while true; do echo '👑 Baby is alive, secrets loaded, empire running'; sleep 30; done"]
+    command: ["sh", "-c", "while true; do echo '👑 Baby heartbeat: empire integrations running'; sleep 30; done"]
+    restart: always
+
+  dominion-web:
+    build: ./web
+    container_name: dominion-web
+    ports:
+      - "80:80"
     restart: always
