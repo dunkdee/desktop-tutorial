@@ -1,5 +1,7 @@
+version: "3.9"
+
 services:
-  api:
+  dominionsark-api:
     image: alpine:latest
     container_name: dominionsark-api
     command: ["echo", "👑 Dominion Ark API placeholder — service coming soon"]
