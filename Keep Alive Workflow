@@ -1,0 +1,15 @@
+name: Keep Baby Alive
+
+on:
+  schedule:
+    - cron: "*/10 * * * *"   # every 10 min
+  workflow_dispatch:
+
+jobs:
+  ping:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Ping Baby API
+        run: |
+          echo "👑 Checking Baby API..."
+          curl --fail http://34.73.72.30:8080/ || exit 1
