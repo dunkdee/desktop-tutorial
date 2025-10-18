@@ -1,0 +1,138 @@
+# 1) Create workflow JSON
+cat > /tmp/agent_tools_gateway.json <<'JSON'
+{
+  "name": "Agent Tools Gateway",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "agent-tools",
+        "responseData": "={{$json}}",
+        "options": { "binaryData": false, "responseCode": 200 }
+      },
+      "id": "Webhook_Entry",
+      "name": "Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1.0,
+      "position": [ -200, 0 ]
+    },
+    {
+      "parameters": {
+        "functionCode": "const hdr = $json.headers || {};\nconst provided = (hdr['x-agent-key'] || hdr['X-Agent-Key'] || '').toString().trim();\nconst SECRET = $env.N8N_TOOL_SECRET || 'CHANGE_ME_NOW';\nif (provided !== SECRET) {\n  return [{ json: { ok:false, error: 'UNAUTHORIZED: bad X-AGENT-KEY' }, pairedItem: {item:0} }];\n}\nconst body = $json.body || {};\nreturn [{ json: { ok:true, tool: body.tool || '', args: body.args || {} } }];"
+      },
+      "id": "Auth_Normalize",
+      "name": "Auth + Normalize",
+      "type": "n8n-nodes-base.function",
+      "typeVersion": 2.0,
+      "position": [ 60, 0 ]
+    },
+    {
+      "parameters": {
+        "dataType": "string",
+        "value1": "={{$json.ok}}",
+        "rules": [{ "operation": "equal", "value2": "true" }]
+      },
+      "id": "Guard_Ok",
+      "name": "Guard OK?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1.0,
+      "position": [ 320, 0 ]
+    },
+    {
+      "parameters": {
+        "propertyName": "={{$json.tool}}",
+        "rules": [
+          { "operation": "equal", "value": "publish_content" },
+          { "operation": "equal", "value": "roi_snapshot" },
+          { "operation": "equal", "value": "email_followup" }
+        ]
+      },
+      "id": "Switch_Tool",
+      "name": "Switch by tool",
+      "type": "n8n-nodes-base.switch",
+      "typeVersion": 2.0,
+      "position": [ 580, 0 ]
+    },
+    {
+      "parameters": {
+        "functionCode": "// TODO: wire to your publisher flow (CapCut/FFmpeg + channel API)\nreturn [{ json: { ok:true, result: { status: \"drafted_or_posted\", echo: $json.args } } }];"
+      },
+      "id": "Publish_Content",
+      "name": "🔧 publish_content (stub)",
+      "type": "n8n-nodes-base.function",
+      "typeVersion": 2.0,
+      "position": [ 860, -140 ]
+    },
+    {
+      "parameters": {
+        "functionCode": "// TODO: query Shopify/Gumroad/Ads and aggregate KPIs\nreturn [{ json: { ok:true, result: { revenue: 0, orders: 0, params: $json.args } } }];"
+      },
+      "id": "ROI_Snapshot",
+      "name": "🔧 roi_snapshot (stub)",
+      "type": "n8n-nodes-base.function",
+      "typeVersion": 2.0,
+      "position": [ 860, 0 ]
+    },
+    {
+      "parameters": {
+        "functionCode": "// TODO: send via Brevo/Gmail\nconst dry = ($json.args.dry_run === true);\nreturn [{ json: { ok:true, result: { sent: !dry, mode: dry ? 'dry_run' : 'live', params: $json.args } } }];"
+      },
+      "id": "Email_Followup",
+      "name": "🔧 email_followup (stub)",
+      "type": "n8n-nodes-base.function",
+      "typeVersion": 2.0,
+      "position": [ 860, 140 ]
+    },
+    {
+      "parameters": { "responseBody": "={{$json}}", "responseCode": 200 },
+      "id": "Reply_Success",
+      "name": "Respond 200",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.0,
+      "position": [ 1140, 0 ]
+    },
+    {
+      "parameters": { "responseBody": "={{$json}}", "responseCode": 401 },
+      "id": "Reply_Unauth",
+      "name": "Respond 401",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.0,
+      "position": [ 580, 200 ]
+    }
+  ],
+  "connections": {
+    "Webhook": { "main": [[ { "node": "Auth + Normalize", "type": "main", "index": 0 } ]] },
+    "Auth + Normalize": { "main": [[ { "node": "Guard OK?", "type": "main", "index": 0 } ]] },
+    "Guard OK?": {
+      "main": [
+        [ { "node": "Switch by tool", "type": "main", "index": 0 } ],
+        [ { "node": "Respond 401", "type": "main", "index": 0 } ]
+      ]
+    },
+    "Switch by tool": {
+      "main": [
+        [ { "node": "🔧 publish_content (stub)", "type": "main", "index": 0 } ],
+        [ { "node": "🔧 roi_snapshot (stub)", "type": "main", "index": 0 } ],
+        [ { "node": "🔧 email_followup (stub)", "type": "main", "index": 0 } ]
+      ]
+    },
+    "🔧 publish_content (stub)": { "main": [[ { "node": "Respond 200", "type": "main", "index": 0 } ]] },
+    "🔧 roi_snapshot (stub)": { "main": [[ { "node": "Respond 200", "type": "main", "index": 0 } ]] },
+    "🔧 email_followup (stub)": { "main": [[ { "node": "Respond 200", "type": "main", "index": 0 } ]] }
+  },
+  "meta": { "version": "2.0" },
+  "pinData": {},
+  "active": true
+}
+JSON
+
+# 2) Import & restart container
+docker cp /tmp/agent_tools_gateway.json n8n:/home/node/agent_tools_gateway.json
+docker exec -u node -it n8n n8n import:workflow --input=/home/node/agent_tools_gateway.json
+docker restart n8n
+
+# 3) Set your shared secret (in your n8n env)
+# Example for docker-compose: add to n8n service:
+#  environment:
+#    - N8N_TOOL_SECRET=<YOUR_SUPER_SECRET>
+# Then: docker compose up -d n8n
