@@ -1,0 +1,30 @@
+name: Empire Status Snapshot
+on:
+  schedule: [{ cron: "*/30 * * * *" }]
+  workflow_dispatch:
+jobs:
+  snapshot:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Smoke test gateway
+        env:
+          GATEWAY: ${{ secrets.N8N_AGENT_GATEWAY_URL }}
+          N8N_TOOL_SECRET: ${{ secrets.N8N_TOOL_SECRET }}
+        run: |
+          set -e
+          curl -sS -X POST "$GATEWAY" \
+            -H "X-AGENT-KEY: $N8N_TOOL_SECRET" -H "Content-Type: application/json" \
+            -d '{"tool":"roi_snapshot","args":{"since":"7d","metrics":["revenue","orders"]}}' > snapshot.json
+          echo "Result:" && cat snapshot.json
+      - name: Append to Session Notes
+        run: |
+          ts=$(date -u +"%Y-%m-%d %H:%M:%SZ")
+          echo "- $ts cron snapshot run" | cat - ops/SESSION_NOTES.md > ops/.tmp && mv ops/.tmp ops/SESSION_NOTES.md
+      - name: Commit notes
+        run: |
+          git config user.name "empire-bot"
+          git config user.email "bot@users.noreply.github.com"
+          git add ops/SESSION_NOTES.md
+          git commit -m "cron: snapshot note" || echo "no changes"
+          git push
