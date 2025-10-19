@@ -1,0 +1,216 @@
+{
+  "name": "Empire Daily Driver (Dominion)",
+  "nodes": [
+    {
+      "parameters": {
+        "triggerTimes": {
+          "item": [
+            {
+              "hours": [],
+              "minutes": [
+                0
+              ],
+              "mode": "everyHour",
+              "weekdays": []
+            }
+          ]
+        }
+      },
+      "name": "Hourly Trigger",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1,
+      "position": [
+        150,
+        150
+      ]
+    },
+    {
+      "parameters": {
+        "cronExpression": "0 9 * * *",
+        "options": {}
+      },
+      "name": "Daily 09:00 Trigger",
+      "type": "n8n-nodes-base.cron",
+      "typeVersion": 1,
+      "position": [
+        150,
+        350
+      ]
+    },
+    {
+      "parameters": {
+        "functionCode": "/* Build calls payloads; keep it simple and readable. */\nconst ts = new Date().toISOString();\nreturn [{ ts, calls: [\n  { tool: 'roi_snapshot', args: { since: '7d', metrics: ['revenue','orders','aov','email_signups'] } },\n  { tool: 'publish_content', args: { channel: 'tiktok', action: 'draft', caption: '3 money myths that keep you broke — and what to do instead.', utm_campaign: 'trend_surge_auto', dry_run: true } },\n  { tool: 'email_followup', args: { audience: 'Warm Leads', subject: 'Quick tip to add $100 this week', body: 'Short, valuable money tip + soft CTA.', send_at: 'now', dry_run: true } }\n]}];"
+      },
+      "name": "Build Calls",
+      "type": "n8n-nodes-base.function",
+      "typeVersion": 1,
+      "position": [
+        400,
+        250
+      ]
+    },
+    {
+      "parameters": {
+        "requestMethod": "POST",
+        "url": "={{ $env.N8N_AGENT_GATEWAY_URL || 'http://localhost:5678/webhook/agent-tools' }}",
+        "options": {
+          "headers": {
+            "X-AGENT-KEY": "={{ $env.N8N_TOOL_SECRET }}",
+            "Content-Type": "application/json"
+          }
+        },
+        "bodyParametersJson": "={{ JSON.stringify({ tool: 'roi_snapshot', args: { since: '7d', metrics: ['revenue','orders','aov','email_signups'] }}) }}",
+        "returnFullResponse": false,
+        "encoding": "utf8"
+      },
+      "name": "Call ROI Snapshot",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 1,
+      "position": [
+        700,
+        120
+      ]
+    },
+    {
+      "parameters": {
+        "requestMethod": "POST",
+        "url": "={{ $env.N8N_AGENT_GATEWAY_URL || 'http://localhost:5678/webhook/agent-tools' }}",
+        "options": {
+          "headers": {
+            "X-AGENT-KEY": "={{ $env.N8N_TOOL_SECRET }}",
+            "Content-Type": "application/json"
+          }
+        },
+        "bodyParametersJson": "={{ JSON.stringify({ tool: 'publish_content', args: { channel: 'tiktok', action: 'draft', caption: '3 money myths that keep you broke — and what to do instead.', utm_campaign: 'trend_surge_auto', dry_run: true }}) }}",
+        "returnFullResponse": false,
+        "encoding": "utf8"
+      },
+      "name": "Call Publish Content",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 1,
+      "position": [
+        700,
+        260
+      ]
+    },
+    {
+      "parameters": {
+        "requestMethod": "POST",
+        "url": "={{ $env.N8N_AGENT_GATEWAY_URL || 'http://localhost:5678/webhook/agent-tools' }}",
+        "options": {
+          "headers": {
+            "X-AGENT-KEY": "={{ $env.N8N_TOOL_SECRET }}",
+            "Content-Type": "application/json"
+          }
+        },
+        "bodyParametersJson": "={{ JSON.stringify({ tool: 'email_followup', args: { audience: 'Warm Leads', subject: 'Quick tip to add $100 this week', body: 'Short, valuable money tip + soft CTA.', send_at: 'now', dry_run: true }}) }}",
+        "returnFullResponse": false,
+        "encoding": "utf8"
+      },
+      "name": "Call Email Followup",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 1,
+      "position": [
+        700,
+        400
+      ]
+    },
+    {
+      "parameters": {
+        "functionCode": "/* Evaluate+Adjust (stub) - record timestamp & echo prior results */\nconst out = { evaluatedAt: new Date().toISOString(), inputs: items.map(i => i.json) };\nreturn [out];"
+      },
+      "name": "Evaluate+Adjust (stub)",
+      "type": "n8n-nodes-base.function",
+      "typeVersion": 1,
+      "position": [
+        1000,
+        260
+      ]
+    }
+  ],
+  "connections": {
+    "Hourly Trigger": {
+      "main": [
+        [
+          {
+            "node": "Build Calls",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Daily 09:00 Trigger": {
+      "main": [
+        [
+          {
+            "node": "Build Calls",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Build Calls": {
+      "main": [
+        [
+          {
+            "node": "Call ROI Snapshot",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Call Publish Content",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Call Email Followup",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Call ROI Snapshot": {
+      "main": [
+        [
+          {
+            "node": "Evaluate+Adjust (stub)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Call Publish Content": {
+      "main": [
+        [
+          {
+            "node": "Evaluate+Adjust (stub)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Call Email Followup": {
+      "main": [
+        [
+          {
+            "node": "Evaluate+Adjust (stub)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {},
+  "versionId": "1"
+}
