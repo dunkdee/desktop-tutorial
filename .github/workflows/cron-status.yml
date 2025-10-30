@@ -23,7 +23,7 @@ jobs:
 
           # Validate that URL begins with http:// or https://
           if [[ ! "$GATEWAY" =~ ^https?:// ]]; then
-            echo "ERROR: GATEWAY must begin with http:// or https://, got: ${GATEWAY:0:20}..."
+            echo "ERROR: GATEWAY must begin with http:// or https://"
             exit 1
           fi
 
