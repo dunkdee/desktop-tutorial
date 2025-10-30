@@ -18,6 +18,7 @@ IFS=$'\n\t'
 # Configuration
 N8N_DATA_DIR="${N8N_DATA_DIR:-/opt/dominion/n8n_data}"
 BACKUP_DIR="${BACKUP_DIR:-/opt/dominion/backups}"
+N8N_CONTAINER_NAME="${N8N_CONTAINER_NAME:-n8n}"
 DRY_RUN="${DRY_RUN:-0}"
 
 # Functions
@@ -221,10 +222,10 @@ do_restore() {
   # Stop n8n services before restore
   echo "🛑 Stopping n8n services..."
   if [ "${DRY_RUN}" -eq 1 ]; then
-    echo "   [DRY] Would stop n8n container"
+    echo "   [DRY] Would stop ${N8N_CONTAINER_NAME} container"
   else
     if command -v docker &> /dev/null; then
-      docker stop n8n 2>/dev/null || echo "   ⚠️  n8n container not running or already stopped"
+      docker stop "${N8N_CONTAINER_NAME}" 2>/dev/null || echo "   ⚠️  ${N8N_CONTAINER_NAME} container not running or already stopped"
     fi
   fi
   echo ""
@@ -256,16 +257,16 @@ do_restore() {
   # Start n8n services
   echo "🚀 Starting n8n services..."
   if [ "${DRY_RUN}" -eq 1 ]; then
-    echo "   [DRY] Would start n8n container"
+    echo "   [DRY] Would start ${N8N_CONTAINER_NAME} container"
   else
     if command -v docker &> /dev/null; then
-      if docker start n8n 2>/dev/null; then
-        echo "   ✓ n8n container started"
+      if docker start "${N8N_CONTAINER_NAME}" 2>/dev/null; then
+        echo "   ✓ ${N8N_CONTAINER_NAME} container started"
         sleep 3
-        docker ps --filter name=n8n --format "table {{.Names}}\t{{.Status}}\t{{.Ports}}"
+        docker ps --filter "name=${N8N_CONTAINER_NAME}" --format "table {{.Names}}\t{{.Status}}\t{{.Ports}}"
       else
-        echo "   ⚠️  Could not start n8n container"
-        echo "   You may need to start it manually: docker start n8n"
+        echo "   ⚠️  Could not start ${N8N_CONTAINER_NAME} container"
+        echo "   You may need to start it manually: docker start ${N8N_CONTAINER_NAME}"
       fi
     fi
   fi
@@ -274,8 +275,8 @@ do_restore() {
   echo "✅ Restore Complete"
   echo ""
   echo "Next steps:"
-  echo "   1. Verify n8n is running: docker ps | grep n8n"
-  echo "   2. Check logs: docker logs n8n"
+  echo "   1. Verify n8n is running: docker ps | grep ${N8N_CONTAINER_NAME}"
+  echo "   2. Check logs: docker logs ${N8N_CONTAINER_NAME}"
   echo "   3. Access n8n UI and verify workflows"
   echo ""
 }
