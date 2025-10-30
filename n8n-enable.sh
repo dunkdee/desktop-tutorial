@@ -195,8 +195,11 @@ import_workflow() {
     echo "   [DRY] Would extract and import workflow from: ${workflow_source}"
   else
     # Extract JSON content between 'cat > /tmp/agent_tools_gateway.json' and next command
-    if awk '/cat > \/tmp\/agent_tools_gateway.json/{flag=1;next}/^#|^docker/{flag=0}flag' "${workflow_source}" | grep -q "name"; then
-      awk '/cat > \/tmp\/agent_tools_gateway.json/{flag=1;next}/^#|^docker/{flag=0}flag' "${workflow_source}" > "${workflow_temp}"
+    local extracted_json
+    extracted_json=$(awk '/cat > \/tmp\/agent_tools_gateway.json/{flag=1;next}/^#|^docker/{flag=0}flag' "${workflow_source}")
+    
+    if echo "${extracted_json}" | grep -q "name"; then
+      echo "${extracted_json}" > "${workflow_temp}"
       echo "   ✓ Workflow JSON extracted to: ${workflow_temp}"
       echo "   ℹ️  To import into n8n container, run:"
       echo "      docker cp ${workflow_temp} n8n:/home/node/agent_tools_gateway.json"
