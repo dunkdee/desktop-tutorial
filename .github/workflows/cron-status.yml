@@ -12,11 +12,59 @@ jobs:
           GATEWAY: ${{ secrets.N8N_AGENT_GATEWAY_URL }}
           N8N_TOOL_SECRET: ${{ secrets.N8N_TOOL_SECRET }}
         run: |
-          set -e
-          curl -sS -X POST "$GATEWAY" \
-            -H "X-AGENT-KEY: $N8N_TOOL_SECRET" -H "Content-Type: application/json" \
-            -d '{"tool":"roi_snapshot","args":{"since":"7d","metrics":["revenue","orders"]}}' > snapshot.json
-          echo "Result:" && cat snapshot.json
+          # Use strict shell options to catch errors early
+          set -euo pipefail
+
+          # Validate GATEWAY is set and non-empty
+          if [[ -z "${GATEWAY:-}" ]]; then
+            echo "ERROR: GATEWAY environment variable is not set or empty" >&2
+            exit 1
+          fi
+
+          # Extract and validate URL scheme (must be http:// or https://)
+          if [[ ! "$GATEWAY" =~ ^https?:// ]]; then
+            echo "ERROR: GATEWAY must start with http:// or https://" >&2
+            echo "Received URL scheme: ${GATEWAY%%://*}" >&2
+            exit 1
+          fi
+
+          # Masked debug output - show scheme and URL length without exposing secrets
+          url_scheme="${GATEWAY%%://*}"
+          url_length="${#GATEWAY}"
+          echo "INFO: Validated GATEWAY - scheme: ${url_scheme}://, length: ${url_length} characters"
+
+          # Retry logic with exponential backoff (up to 3 attempts)
+          max_attempts=3
+          attempt=1
+          backoff=2
+
+          while [[ $attempt -le $max_attempts ]]; do
+            echo "Attempt $attempt of $max_attempts..."
+
+            # Invoke curl with proper flags and quoted variables
+            if curl --fail --show-error --location --max-time 10 -sS -X POST "$GATEWAY" \
+              -H "X-AGENT-KEY: $N8N_TOOL_SECRET" \
+              -H "Content-Type: application/json" \
+              -d '{"tool":"roi_snapshot","args":{"since":"7d","metrics":["revenue","orders"]}}' > snapshot.json; then
+              echo "SUCCESS: Gateway request completed"
+              echo "Result:" && cat snapshot.json
+              break
+            else
+              exit_code=$?
+              echo "WARNING: Attempt $attempt failed with exit code $exit_code" >&2
+
+              if [[ $attempt -eq $max_attempts ]]; then
+                echo "ERROR: All $max_attempts attempts failed" >&2
+                exit $exit_code
+              fi
+
+              # Exponential backoff before retry
+              sleep_time=$((backoff ** (attempt - 1)))
+              echo "Retrying in ${sleep_time} seconds..." >&2
+              sleep $sleep_time
+              attempt=$((attempt + 1))
+            fi
+          done
       - name: Append to Session Notes
         run: |
           ts=$(date -u +"%Y-%m-%d %H:%M:%SZ")
