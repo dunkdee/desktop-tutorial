@@ -57,7 +57,7 @@ jobs:
                 exit $exit_code
               fi
 
-              # Exponential backoff before retry (2^0=1, 2^1=2, 2^2=4 seconds)
+              # Exponential backoff before retry (1, 2, 4 seconds for attempts 1, 2, 3)
               if [[ $attempt -eq 1 ]]; then
                 sleep_time=1
               elif [[ $attempt -eq 2 ]]; then
