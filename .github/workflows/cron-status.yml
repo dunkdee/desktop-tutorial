@@ -24,7 +24,7 @@ jobs:
           # Extract and validate URL scheme (must be http:// or https://)
           if [[ ! "$GATEWAY" =~ ^https?:// ]]; then
             echo "ERROR: GATEWAY must start with http:// or https://" >&2
-            echo "Received URL scheme: ${GATEWAY%%://*}" >&2
+            echo "Invalid URL scheme detected" >&2
             exit 1
           fi
 
@@ -36,7 +36,6 @@ jobs:
           # Retry logic with exponential backoff (up to 3 attempts)
           max_attempts=3
           attempt=1
-          backoff=2
 
           while [[ $attempt -le $max_attempts ]]; do
             echo "Attempt $attempt of $max_attempts..."
@@ -58,8 +57,14 @@ jobs:
                 exit $exit_code
               fi
 
-              # Exponential backoff before retry
-              sleep_time=$((backoff ** (attempt - 1)))
+              # Exponential backoff before retry (2^0=1, 2^1=2, 2^2=4 seconds)
+              if [[ $attempt -eq 1 ]]; then
+                sleep_time=1
+              elif [[ $attempt -eq 2 ]]; then
+                sleep_time=2
+              else
+                sleep_time=4
+              fi
               echo "Retrying in ${sleep_time} seconds..." >&2
               sleep $sleep_time
               attempt=$((attempt + 1))
