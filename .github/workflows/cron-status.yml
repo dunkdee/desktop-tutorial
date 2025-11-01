@@ -12,7 +12,6 @@ jobs:
           GATEWAY: ${{ secrets.N8N_AGENT_GATEWAY_URL }}
           N8N_TOOL_SECRET: ${{ secrets.N8N_TOOL_SECRET }}
         run: |
-        copilot/fix-smoke-test-gateway-again
           # Use strict shell options to catch errors early
           set -euo pipefail
 
@@ -71,31 +70,6 @@ jobs:
               attempt=$((attempt + 1))
             fi
           done
-
-          # Enable strict shell options for better error handling
-          set -euo pipefail
-
-          # Validate that GATEWAY is set and non-empty
-          if [ -z "${GATEWAY:-}" ]; then
-            echo "ERROR: GATEWAY environment variable is not set or is empty"
-            exit 1
-          fi
-
-          # Validate that URL begins with http:// or https://
-          if [[ ! "$GATEWAY" =~ ^https?:// ]]; then
-            echo "ERROR: GATEWAY must begin with http:// or https://"
-            exit 1
-          fi
-
-          # Print the GATEWAY value for debugging (will be masked by GitHub if it's a secret)
-          echo "Using GATEWAY='${GATEWAY}'"
-
-          # Call curl with proper quoting and recommended flags
-          curl --fail --show-error --location --max-time 10 -X POST "${GATEWAY}" \
-            -H "X-AGENT-KEY: ${N8N_TOOL_SECRET}" -H "Content-Type: application/json" \
-            -d '{"tool":"roi_snapshot","args":{"since":"7d","metrics":["revenue","orders"]}}' > snapshot.json
-          echo "Result:" && cat snapshot.json
- main
       - name: Append to Session Notes
         run: |
           ts=$(date -u +"%Y-%m-%d %H:%M:%SZ")
