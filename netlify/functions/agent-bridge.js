@@ -10,10 +10,12 @@ exports.handler = async (event) => {
   if (event.httpMethod !== 'POST') return { statusCode: 405, headers: cors(), body: 'Method not allowed' };
   try {
     const bodyText = event.body || '{}';
-    const secret = process.env.AGENT_HMAC_SECRET || '';
+    const secret = process.env.AGENT_HMAC_SECRET;
+    if (!secret) return { statusCode: 500, headers: cors(), body: JSON.stringify({ error: 'AGENT_HMAC_SECRET not configured' }) };
     const hmac = crypto.createHmac('sha256', secret).update(bodyText).digest('hex');
     const base = (process.env.N8N_WEBHOOK_BASE || '').replace(/\/$/, '');
-    const url = `${base}/webhook/clean2`;
+    const path = process.env.N8N_WEBHOOK_PATH || '/webhook/clean2';
+    const url = `${base}${path}`;
     const r = await fetch(url, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', 'X-Agent-HMAC': hmac, 'X-Source': 'site' },
