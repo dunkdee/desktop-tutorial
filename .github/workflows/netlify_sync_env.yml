@@ -15,6 +15,7 @@ jobs:
           NETLIFY_SITE_ID: ${{ secrets.NETLIFY_SITE_ID }}
           # Required
           N8N_WEBHOOK_BASE: ${{ secrets.N8N_WEBHOOK_BASE }}
+          N8N_WEBHOOK_PATH: ${{ secrets.N8N_WEBHOOK_PATH }}
           AGENT_HMAC_SECRET: ${{ secrets.AGENT_HMAC_SECRET }}
           # Email
           BREVO_API_KEY: ${{ secrets.BREVO_API_KEY }}
@@ -33,6 +34,7 @@ jobs:
           set -e
           set_env() { [ -n "$2" ] && netlify env:set "$1" "$2" >/dev/null || true; }
           set_env N8N_WEBHOOK_BASE "$N8N_WEBHOOK_BASE"
+          set_env N8N_WEBHOOK_PATH "$N8N_WEBHOOK_PATH"
           set_env AGENT_HMAC_SECRET "$AGENT_HMAC_SECRET"
           set_env BREVO_API_KEY "$BREVO_API_KEY"
           set_env DEFAULT_FROM_EMAIL "$DEFAULT_FROM_EMAIL"
