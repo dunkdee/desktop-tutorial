@@ -1,0 +1,16 @@
+[build]
+  functions = "netlify/functions"
+
+[[redirects]]
+  from = "/api/*"
+  to = "/.netlify/functions/:splat"
+  status = 200
+
+[[headers]]
+  for = "/api/*"
+  [headers.values]
+    Access-Control-Allow-Origin = "*"
+    Access-Control-Allow-Headers = "Content-Type,X-Agent-HMAC,X-Source"
+    Access-Control-Allow-Methods = "POST,OPTIONS"
+
+# NOTE: Build command + publish dir are set per framework in Netlify UI (Vite: dist; CRA: build; Next export: out; Next SSR: add @netlify/plugin-nextjs)

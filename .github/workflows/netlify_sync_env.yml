@@ -1,0 +1,47 @@
+name: Sync Netlify Env from GitHub Secrets
+on:
+  workflow_dispatch:
+  push:
+    paths: [".github/workflows/netlify_sync_env.yml"]
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: npm i -g netlify-cli
+      - name: Set envs on Netlify
+        env:
+          NETLIFY_AUTH_TOKEN: ${{ secrets.NETLIFY_AUTH_TOKEN }}
+          NETLIFY_SITE_ID: ${{ secrets.NETLIFY_SITE_ID }}
+          # Required
+          N8N_WEBHOOK_BASE: ${{ secrets.N8N_WEBHOOK_BASE }}
+          AGENT_HMAC_SECRET: ${{ secrets.AGENT_HMAC_SECRET }}
+          # Email
+          BREVO_API_KEY: ${{ secrets.BREVO_API_KEY }}
+          DEFAULT_FROM_EMAIL: ${{ secrets.DEFAULT_FROM_EMAIL }}
+          DEFAULT_FROM_NAME: ${{ secrets.DEFAULT_FROM_NAME }}
+          # Optional (commerce/automation)
+          SHOPIFY_STORE_DOMAIN: ${{ secrets.SHOPIFY_STORE_DOMAIN }}
+          SHOPIFY_ADMIN_API_TOKEN: ${{ secrets.SHOPIFY_ADMIN_API_TOKEN }}
+          SHOPIFY_WEBHOOK_SECRET: ${{ secrets.SHOPIFY_WEBHOOK_SECRET }}
+          GUMROAD_TOKEN: ${{ secrets.GUMROAD_TOKEN }}
+          # Trading
+          OANDA_API_KEY: ${{ secrets.OANDA_API_KEY }}
+          OANDA_ACCOUNT_ID: ${{ secrets.OANDA_ACCOUNT_ID }}
+          OANDA_ENV: ${{ secrets.OANDA_ENV }}
+        run: |
+          set -e
+          set_env() { [ -n "$2" ] && netlify env:set "$1" "$2" >/dev/null || true; }
+          set_env N8N_WEBHOOK_BASE "$N8N_WEBHOOK_BASE"
+          set_env AGENT_HMAC_SECRET "$AGENT_HMAC_SECRET"
+          set_env BREVO_API_KEY "$BREVO_API_KEY"
+          set_env DEFAULT_FROM_EMAIL "$DEFAULT_FROM_EMAIL"
+          set_env DEFAULT_FROM_NAME "$DEFAULT_FROM_NAME"
+          set_env SHOPIFY_STORE_DOMAIN "$SHOPIFY_STORE_DOMAIN"
+          set_env SHOPIFY_ADMIN_API_TOKEN "$SHOPIFY_ADMIN_API_TOKEN"
+          set_env SHOPIFY_WEBHOOK_SECRET "$SHOPIFY_WEBHOOK_SECRET"
+          set_env GUMROAD_TOKEN "$GUMROAD_TOKEN"
+          set_env OANDA_API_KEY "$OANDA_API_KEY"
+          set_env OANDA_ACCOUNT_ID "$OANDA_ACCOUNT_ID"
+          set_env OANDA_ENV "$OANDA_ENV"
+          echo "Synced Netlify envs from GitHub Secrets."
