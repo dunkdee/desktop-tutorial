@@ -95,11 +95,11 @@ jobs:
       - name: Build & push API image
         run: |
           IMAGE="${{ env.AR_HOST }}/${{ env.PROJECT_ID }}/${{ env.AR_REPO }}/dominion-api:latest"
-          docker build -f services/api/Dockerfile -t "$IMAGE" services/api
+          docker build -f apps/api/Dockerfile -t "$IMAGE" apps/api
           docker push "$IMAGE"
 
       - name: Build & push Worker image
         run: |
-          IMAGE="${{ env.AR_HOST }}/${{ env.PROJECT_ID }}/${{ env.AR_REPO }}/dominion-worker:latest"
-          docker build -f services/worker/Dockerfile -t "$IMAGE" services/worker
+          IMAGE="${{ env.AR_HOST }}/${{ env.PROJECT_ID }}/${{ env.AR_REPO }}/dominion-jarvis:latest"
+          docker build -f apps/jarvis/Dockerfile -t "$IMAGE" apps/jarvis
           docker push "$IMAGE"
