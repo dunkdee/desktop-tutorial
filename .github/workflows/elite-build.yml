@@ -1,0 +1,48 @@
+name: Elite Build Gate
+
+on:
+  pull_request:
+  push:
+    branches: ["main"]
+
+concurrency:
+  group: elite-build-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  validate-and-build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Validate shell scripts
+        run: |
+          bash -n scripts/repo-audit.sh
+          bash -n scripts/launch-ecosystem.sh
+
+      - name: Validate python syntax
+        run: |
+          python -m py_compile api/app.py apps/api/main.py apps/jarvis/worker.py apps/tiktok/main.py
+
+      - name: Validate docker compose schema
+        run: docker compose config >/tmp/compose.resolved.yml
+
+      - name: Build web image
+        run: docker build -f web/Dockerfile -t dominion-web:test web
+
+      - name: Build API image
+        run: docker build -f apps/api/Dockerfile -t dominion-api:test apps/api
+
+      - name: Build Jarvis image
+        run: docker build -f apps/jarvis/Dockerfile -t dominion-jarvis:test apps/jarvis
