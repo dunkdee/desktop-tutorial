@@ -1,3 +1,7 @@
-gh secret set YOUTUBE_CLIENT_ID --body "361535473510-nc2ubho4empk3toa9rrv8p06t8tcp52n.apps.googleusercontent.com" --repo your-repo
-gh secret set YOUTUBE_CLIENT_SECRET --body "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" --repo your-repo
-gh secret set YOUTUBE_API_KEY --body "AIzaSyBcV_CXmu5EH-EDVE1x2qQKlC31M2UFrnU" --repo your-repo
+# GitHub Secrets setup reference
+# Run these with actual values from your secure password manager.
+# NEVER paste real keys into this file — this repo is public.
+
+# gh secret set YOUTUBE_CLIENT_ID --body "YOUR_VALUE_HERE" --repo dunkdee/desktop-tutorial
+# gh secret set YOUTUBE_CLIENT_SECRET --body "YOUR_VALUE_HERE" --repo dunkdee/desktop-tutorial
+# gh secret set YOUTUBE_API_KEY --body "YOUR_VALUE_HERE" --repo dunkdee/desktop-tutorial
