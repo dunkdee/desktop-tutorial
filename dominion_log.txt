@@ -1,0 +1,42 @@
+DOMINION EMPIRE — SESSION LOG
+Format: [DATE] [SESSION] ACTION / FINDING / DECISION
+===========================================================
+
+[2026-06-14] [SESSION-001] VM AUDIT COMPLETE
+  - Container: Ubuntu 24.04.4, 4 vCPU, 15GB RAM, 252GB disk
+  - Running as root in ephemeral Firecracker microVM
+  - Repo: dunkdee/desktop-tutorial @ branch claude/vm-status-check-s0800x
+  - STATE.md and dominion_log.txt did NOT exist — created both this session
+  - Egress blocked: cannot reach dominionhealing.org, api.gumroad.com, or any prod service from this container
+  - All live health checks require prod VM access or browser
+
+[2026-06-14] [SESSION-001] GROUND TRUTH ESTABLISHED
+  - Baby API (Flask): code-complete, checks Gumroad/OANDA/Binance/YouTube/Brevo secrets
+  - Dominion Healing web: static HTML/Nginx, code-complete
+  - YouTube pipeline: code-complete (Claude Fable 5 + Higgins), needs ANTHROPIC_API_KEY + Higgins key on prod
+  - TikTok uploader: code-complete, needs OAuth + env vars
+  - Jarvis orchestrator: code-complete, needs Redis
+  - FastAPI notify: code-complete, needs BREVO_API_KEY
+  - Next.js frontend: shell only, pages/ not built out
+
+[2026-06-14] [SESSION-001] REVENUE LOOP STATUS
+  - Divine Sovereignty Gumroad checkout: UNKNOWN from this container
+  - Gumroad endpoint exists at api/app.py /gumroad route
+  - Cannot verify product is published or generating sales without prod VM + secrets
+  - ACTION NEEDED: Dewayne to confirm from browser: https://api.dominionhealing.org/gumroad
+
+[2026-06-14] [SESSION-001] GAPS IDENTIFIED
+  - No STATE.md or dominion_log.txt existed before this session (created now)
+  - Live service health: all UNKNOWN (egress blocked)
+  - TikTok OAuth: not tested
+  - Trading paper-mode: not tested
+  - Higgins video API: key not confirmed
+
+[2026-06-14] [SESSION-001] HANDOFF NOTE
+  Next session should:
+  1. Confirm dominionhealing.org is live and Gumroad checkout is firing
+  2. If prod VM accessible: run docker compose ps and curl api.dominionhealing.org/healthz
+  3. Decide: wire up Next.js frontend pages OR stay with static Nginx site
+  4. TikTok OAuth flow — needs browser redirect to complete
+  5. YouTube pipeline — confirm Higgins API key and run a test job
+===========================================================
