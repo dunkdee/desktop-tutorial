@@ -28,35 +28,45 @@ jobs:
         run: |
           gh release delete blueprint-v1 --yes 2>/dev/null || true
           git push origin --delete refs/tags/blueprint-v1 2>/dev/null || true
-          gh release create blueprint-v1 \
-            --title "Divine Sovereignty Blueprint v1" \
-            --notes "Product delivery file for Divine Sovereignty Blueprint"
+          gh release create blueprint-v1 --title "Divine Sovereignty Blueprint v1" --notes "Product delivery"
           gh release upload blueprint-v1 /tmp/divine-sovereignty-blueprint.pdf --clobber
-          PDF_URL="https://github.com/${{ github.repository }}/releases/download/blueprint-v1/divine-sovereignty-blueprint.pdf"
-          echo "PDF at: $PDF_URL"
-          echo "PDF_URL=$PDF_URL" >> $GITHUB_ENV
+          echo "PDF_URL=https://github.com/${{ github.repository }}/releases/download/blueprint-v1/divine-sovereignty-blueprint.pdf" >> $GITHUB_ENV
 
-      - name: Set delivery URL and publish on Gumroad
+      - name: Try all Gumroad file upload approaches
         env:
           TOKEN: ${{ inputs.token }}
           PRODUCT_ID: "Rgc4gza-8hLx7YSIu3vBQA=="
+          PERMALINK: "xnfyw"
         run: |
-          echo "Updating Gumroad product with delivery URL..."
-          curl -s -X PUT \
+          echo "=== Attempt 1: product_files via permalink ==="
+          curl -s -w "\nHTTP:%{http_code}" -X POST \
             -H "Authorization: Bearer $TOKEN" \
-            -H "Content-Type: application/x-www-form-urlencoded" \
-            -d "custom_delivery_url=$(python3 -c "import urllib.parse; print(urllib.parse.quote('$PDF_URL', safe=''))" )&published=true" \
+            -F "file=@/tmp/divine-sovereignty-blueprint.pdf;type=application/pdf" \
+            "https://api.gumroad.com/v2/products/$PERMALINK/product_files"
+          echo ""
+          echo "=== Attempt 2: product_files via ID with Bearer ==="
+          curl -s -w "\nHTTP:%{http_code}" -X POST \
+            -H "Authorization: Bearer $TOKEN" \
+            -F "file=@/tmp/divine-sovereignty-blueprint.pdf;type=application/pdf" \
+            "https://api.gumroad.com/v2/products/$PRODUCT_ID/product_files"
+          echo ""
+          echo "=== Attempt 3: PUT with url field (JSON body) ==="
+          curl -s -w "\nHTTP:%{http_code}" -X PUT \
+            -H "Authorization: Bearer $TOKEN" \
+            -H "Content-Type: application/json" \
+            -d "{\"url\":\"$PDF_URL\",\"published\":true}" \
             "https://api.gumroad.com/v2/products/$PRODUCT_ID"
           echo ""
-          echo "---"
-          echo "Retry with access_token param style..."
-          curl -s -X PUT \
-            -d "access_token=$TOKEN&custom_delivery_url=$PDF_URL&published=true" \
+          echo "=== Attempt 4: PUT published only ==="
+          curl -s -w "\nHTTP:%{http_code}" -X PUT \
+            -H "Authorization: Bearer $TOKEN" \
+            -d "published=true" \
             "https://api.gumroad.com/v2/products/$PRODUCT_ID"
+          echo ""
 
-      - name: Verify product status
+      - name: Verify
         env:
           TOKEN: ${{ inputs.token }}
           PRODUCT_ID: "Rgc4gza-8hLx7YSIu3vBQA=="
         run: |
-          curl -s -H "Authorization: Bearer $TOKEN" "https://api.gumroad.com/v2/products/$PRODUCT_ID" | python3 -c "import json,sys; d=json.load(sys.stdin); p=d.get('product',{}); print('Published:',p.get('published')); print('URL field:',p.get('url')); print('Custom delivery URL:',p.get('custom_delivery_url')); print('Short URL:',p.get('short_url'))"
+          curl -s -H "Authorization: Bearer $TOKEN" "https://api.gumroad.com/v2/products/$PRODUCT_ID" | python3 -c "import json,sys; d=json.load(sys.stdin); p=d.get('product',{}); print('Published:',p.get('published')); print('Files:',len(p.get('files',[]))); print('Product files:',len(p.get('product_files',[]))); print('URL:',p.get('url')); print('Custom delivery:',p.get('custom_delivery_url'))"
