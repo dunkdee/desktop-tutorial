@@ -1,0 +1,65 @@
+name: Create Gumroad Product
+
+on:
+  workflow_dispatch:
+    inputs:
+      token_override:
+        description: 'Gumroad access token'
+        required: false
+        type: string
+
+jobs:
+  create:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Create product on Gumroad
+        env:
+          GUMROAD_TOKEN: ${{ inputs.token_override || secrets.GUMROAD_TOKEN }}
+        run: |
+          DESCRIPTION="You were not created to struggle. You were created to reign.
+
+Divine Sovereignty Blueprint is the step-by-step system for breaking free from spiritual, mental, and financial limitations — and stepping into the abundant life that was always meant for you.
+
+WHAT YOU GET INSIDE:
+
+✦ The 7 Pillars of Divine Sovereignty — the exact framework for walking in your God-given authority in every area of life
+
+✦ Heal Your Money Story — identify and uproot the deep wounds, beliefs, and generational patterns blocking your financial breakthrough
+
+✦ The Empire Builder Mindset — how to think, move, and operate like someone who was built to win
+
+✦ Daily Activation Practices — morning rituals, declarations, and alignment strategies used by kingdom builders
+
+✦ Your Dominion Action Plan — a 30-day blueprint for shifting your identity, your income, and your impact
+
+WHO THIS IS FOR:
+This is for you if you're done playing small. If you know there's more inside you. If you're ready to stop surviving and start building something that lasts.
+
+Your destiny is dominion. This is where it starts."
+
+          echo "👑 Creating Gumroad product..."
+          RESPONSE=$(curl -s -X POST https://api.gumroad.com/v2/products \
+            -d "access_token=${GUMROAD_TOKEN}" \
+            --data-urlencode "name=Divine Sovereignty Blueprint: Break Free, Heal Your Mindset & Build Your Empire" \
+            --data-urlencode "description=${DESCRIPTION}" \
+            -d "price=4700" \
+            -d "published=false")
+
+          echo "$RESPONSE" | python3 -c "
+          import json, sys
+          data = json.load(sys.stdin)
+          if data.get('success'):
+              p = data['product']
+              print('✅ PRODUCT CREATED')
+              print(f'  ID:        {p[\"id\"]}')
+              print(f'  Name:      {p[\"name\"]}')
+              print(f'  Price:     \${p[\"price\"]/100:.2f}')
+              print(f'  Published: {p[\"published\"]}')
+              print(f'  Edit URL:  https://app.gumroad.com/products/{p[\"id\"]}/edit')
+              print()
+              print('NEXT STEP: Upload your PDF at the edit URL above, then hit Publish.')
+          else:
+              print('FAILED:', data.get('message', 'unknown'))
+              print(json.dumps(data, indent=2))
+              sys.exit(1)
+          "
