@@ -2,7 +2,7 @@
 > Session memory. Read this first. Update before every push.
 
 ## Last Updated
-2026-06-15 — Session-003 by Claude on `claude/vm-status-check-s0800x`
+2026-06-15 — Session-004 by Claude on `claude/vm-status-check-s0800x`
 
 ## North Star
 Walk in divine power, wisdom, and sovereignty. Every project aligns with abundance, visibility, victory. Revenue first. One dollar earned beats a perfect system nobody's paying for.
@@ -18,7 +18,7 @@ Walk in divine power, wisdom, and sovereignty. Every project aligns with abundan
 | Product: Divine Sovereignty Blueprint | **EXISTS** | ID `Rgc4gza-8hLx7YSIu3vBQA==` |
 | Checkout URL | **LIVE** | `https://singleton828.gumroad.com/l/xnfyw` |
 | Price | $47 | Confirmed in API response |
-| Published flag | **STUCK AT false** | Gumroad API v2 cannot set `published=true` programmatically without a file. API silently ignores `custom_delivery_url` and `url` params. Must use dashboard. |
+| Published flag | **STUCK AT false** | Gumroad API v2 cannot set `published=true` programmatically without a file. Must use dashboard. |
 | PDF file | **GENERATED + HOSTED** | `scripts/gen_blueprint.py` → 5-page PDF on GitHub Release at `https://github.com/dunkdee/desktop-tutorial/releases/download/blueprint-v1/divine-sovereignty-blueprint.pdf` |
 | Website CTA button | **WIRED** | Points to `https://singleton828.gumroad.com/l/xnfyw` — `$47` in button text |
 
@@ -33,6 +33,9 @@ Walk in divine power, wisdom, and sovereignty. Every project aligns with abundan
 | `VM_HOST` | Unknown — needs `34.73.72.30` |
 | `VM_USER` | Unknown — needs `malachisingleton8` |
 | `VM_SSH_KEY` | Unknown — needs prod VM private key |
+| `GEMINI_API_KEY` | **NEEDED** — get from aistudio.google.com → Add to GitHub Secrets |
+| `GOOGLE_SERVICE_ACCOUNT_JSON` | **NEEDED** — create service account in GCP Console, download JSON, add as secret |
+| `GA4_MEASUREMENT_ID` | **NEEDED** — create GA4 property at analytics.google.com, format `G-XXXXXXXXXX` |
 | All other secrets | Unknown |
 
 ### Domain / Production
@@ -47,41 +50,67 @@ Walk in divine power, wisdom, and sovereignty. Every project aligns with abundan
 ### Repo — What Exists and is Code-Complete
 | App | Path | Stack | Status |
 |---|---|---|---|
-| Baby API | `api/app.py` | Flask, port 8080 | Code complete. Checks YouTube, Gumroad, OANDA, Binance, Brevo env vars |
-| Dominion Healing web | `web/public/index.html` + nginx | Static HTML/Nginx | **UPDATED** — CTA button → Gumroad $47 checkout |
-| Blueprint PDF generator | `scripts/gen_blueprint.py` | Python + fpdf2 | **NEW** — generates 5-page Divine Sovereignty Blueprint PDF |
+| Baby API | `api/app.py` | Flask, port 8080 | **UPDATED** — Gemini/Drive/GA4 health checks + `/gemini` endpoint |
+| Dominion Healing web | `web/public/index.html` + nginx | Static HTML/Nginx | **UPDATED** — GA4 tag wired (envsubst via `web/start.sh`) |
+| Blueprint PDF generator | `scripts/gen_blueprint.py` | Python + fpdf2 | Complete — generates 5-page Divine Sovereignty Blueprint PDF |
+| Gemini content engine | `apps/gemini/engine.py` | Python + google-genai | **NEW** — YouTube scripts, TikTok, email sequences, social posts, research, product descriptions |
+| Gemini Drive upload | `apps/gemini/drive_upload.py` | Python + Google Drive API | **NEW** — uploads assets to "Dominion Empire Assets" Drive folder |
 | Jarvis orchestrator | `apps/jarvis/worker.py` | Python + Redis | Code complete. Redis heartbeat loop |
 | FastAPI notify (email) | `apps/api/main.py` | FastAPI + Brevo | Code complete. `/notify` + `/healthz` |
-| YouTube pipeline | `apps/youtube/` | Python + Claude Fable 5 | Code complete. Script gen → video → upload |
+| YouTube pipeline | `apps/youtube/` | Python + Claude Fable 5 / Gemini 2.5 | **UPDATED** — `SCRIPT_ENGINE=gemini` uses Gemini; Drive backup after upload |
 | TikTok uploader | `apps/tiktok/main.py` | FastAPI | Code complete. Locked to `lawrence72` account |
 | Next.js frontend | `apps/frontend/` | Next.js 14 | Dependencies listed. Pages not fully built out |
+
+### Google AI Pro Integration Status
+| Feature | Status | Notes |
+|---|---|---|
+| Gemini 2.5 Pro/Flash | **CODE COMPLETE** | `apps/gemini/engine.py` — needs `GEMINI_API_KEY` secret |
+| Google Drive storage | **CODE COMPLETE** | `apps/gemini/drive_upload.py` — needs `GOOGLE_SERVICE_ACCOUNT_JSON` secret |
+| GA4 Analytics | **CODE COMPLETE** | `web/public/index.html` placeholder + `web/start.sh` envsubst — needs `GA4_MEASUREMENT_ID` secret |
+| Gemini content workflow | **CODE COMPLETE** | `.github/workflows/gemini-content.yml` — generate any content type on demand |
+| Gemini in YouTube pipeline | **CODE COMPLETE** | `apps/youtube/gemini_script.py` + pipeline env var `SCRIPT_ENGINE=gemini` |
+| Google Flow / NotebookLM | **PENDING** | Load Blueprint PDF into NotebookLM for audio overview bonus |
 
 ### CI/CD
 | Workflow | Trigger | Status |
 |---|---|---|
-| `baby.yml` | Push to main → SSH deploy + Docker restart | Needs VM_HOST/VM_USER/VM_SSH_KEY secrets set |
+| `baby.yml` | Push to main → SSH deploy + Docker restart | **UPDATED** — now writes GEMINI_API_KEY, GOOGLE_SERVICE_ACCOUNT_JSON, GA4_MEASUREMENT_ID to .env; pulls latest code; restarts all services |
 | `gumroad-check.yml` | Manual | WORKING — verified token + lists products/sales |
 | `create-product.yml` | Manual | DONE — created Divine Sovereignty Blueprint |
 | `publish-product.yml` | Manual | DONE — published, short URL live |
-| `upload-blueprint.yml` | Manual | WORKING — generates PDF + uploads to GitHub Release. Gumroad file attach blocked by API limitation. |
+| `upload-blueprint.yml` | Manual | WORKING — generates PDF + uploads to GitHub Release |
+| `gemini-content.yml` | Manual | READY — needs GEMINI_API_KEY secret to run |
 | `cron-status.yml` | Every 30 min | Depends on `N8N_AGENT_GATEWAY_URL` secret |
 
 ---
 
 ## In Progress
-- [ ] **Gumroad product file attach** — PDF is at `https://github.com/dunkdee/desktop-tutorial/releases/download/blueprint-v1/divine-sovereignty-blueprint.pdf`. Go to https://app.gumroad.com/products/Rgc4gza-8hLx7YSIu3vBQA==/edit, download PDF, upload it there, and publish. This is the ONLY remaining step to make the product purchasable.
-- [ ] **Update GUMROAD_TOKEN secret** — Go to GitHub → dunkdee/desktop-tutorial → Settings → Secrets → update `GUMROAD_TOKEN` to `_7K6RZVc_PEhdz4WyGJJTEw1TAlWrf5S0-GvAKD_CVY`
-- [ ] **Set VM SSH secrets** — Add `VM_HOST=34.73.72.30`, `VM_USER=malachisingleton8`, `VM_SSH_KEY=<private key>` to GitHub Secrets so baby.yml SSH deploy works
-- [ ] **TikTok worker** — Code complete but OAuth flow not tested.
-- [ ] **Trading paper-mode tests** — OANDA integration exists. Not live-tested.
-- [ ] **Next.js frontend** — `apps/frontend/pages/` not populated. Shell only.
+- [ ] **Gumroad product file attach** — PDF at `https://github.com/dunkdee/desktop-tutorial/releases/download/blueprint-v1/divine-sovereignty-blueprint.pdf`. Go to https://app.gumroad.com/products/Rgc4gza-8hLx7YSIu3vBQA==/edit → Content tab → upload PDF → Save & Publish.
+- [ ] **GEMINI_API_KEY** — Get from aistudio.google.com → add to GitHub Secrets
+- [ ] **GA4_MEASUREMENT_ID** — Create property at analytics.google.com → get `G-XXXXXXXXXX` → add to GitHub Secrets
+- [ ] **GOOGLE_SERVICE_ACCOUNT_JSON** — Create service account in GCP Console → download JSON → add as GitHub Secret
+- [ ] **Update GUMROAD_TOKEN secret** — Update to `_7K6RZVc_PEhdz4WyGJJTEw1TAlWrf5S0-GvAKD_CVY`
+- [ ] **Set VM SSH secrets** — Add `VM_HOST`, `VM_USER`, `VM_SSH_KEY` for SSH deploy
+- [ ] **TikTok worker** — Code complete but OAuth flow not tested
+- [ ] **Trading paper-mode tests** — OANDA integration exists. Not live-tested
+- [ ] **Next.js frontend** — `apps/frontend/pages/` not populated
+- [ ] **NotebookLM audio overview** — Load Blueprint PDF → generate audio → add as product bonus
 
 ## Blocked
-- Live service health checks — egress policy blocks all prod domains from this container.
-- Gumroad file attachment — Gumroad API v2 has no file upload endpoint and ignores `custom_delivery_url` in PUT. Dashboard only.
+- Live service health checks — egress policy blocks all prod domains from this container
+- Gumroad file attachment — API v2 has no file upload endpoint. Dashboard only.
 
-## Completed (this session — Session-003)
-- [x] Diagnosed YAML parse bug in upload-blueprint.yml (multi-line python3 -c at col 0 inside block scalar)
+## Completed (this session — Session-004)
+- [x] GA4 analytics wired into website — placeholder `GA4_MEASUREMENT_ID_PLACEHOLDER` replaced at container start via `web/start.sh` envsubst
+- [x] `web/Dockerfile` updated — uses `start.sh` entrypoint for envsubst
+- [x] `apps/youtube/gemini_script.py` — Gemini 2.5 Pro drop-in for YouTube script generation
+- [x] `apps/youtube/pipeline.py` updated — `SCRIPT_ENGINE=gemini` switches to Gemini; Drive backup after upload
+- [x] `apps/youtube/requirements.txt` updated — added `google-genai`, `google-api-python-client`, `google-auth`
+- [x] `docker-compose.yml` updated — `GEMINI_API_KEY`, `GOOGLE_SERVICE_ACCOUNT_JSON`, `GA4_MEASUREMENT_ID` wired to both baby-api and dominion-web; `google-genai` added to baby-api install
+- [x] `baby.yml` updated — writes all new secrets to `.env`; pulls latest code; restarts all services including web
+
+## Completed (Session-003)
+- [x] Diagnosed YAML parse bug in upload-blueprint.yml
 - [x] Fixed workflow: `scripts/gen_blueprint.py` in repo, clean workflow with `checkout@v4`
 - [x] PDF generates successfully: 7404 bytes, 5 pages via GitHub Actions
 - [x] PDF hosted on GitHub Release: `https://github.com/dunkdee/desktop-tutorial/releases/download/blueprint-v1/divine-sovereignty-blueprint.pdf`

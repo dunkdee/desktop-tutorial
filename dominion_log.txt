@@ -1,1 +1,139 @@
-RE9NSU5JT04gRU1QSVJFIOKAlCBTRVNTSU9OIExPRwpGb3JtYXQ6IFtEQVRFXSBbU0VTU0lPTl0gQUNUSU9OIC8gRklORElORyAvIERFQ0lTSU9OCj09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09CgpbMjAyNi0wNi0xNF0gW1NFU1NJT04tMDAxXSBWTSBBVURJVCBDT01QTEVURQogIC0gQ29udGFpbmVyOiBVYnVudHUgMjQuMDQuNCwgNCB2Q1BVLCAxNUdCIFJBTSwgMjUyR0IgZGlzawogIC0gUnVubmluZyBhcyByb290IGluIGVwaGVtZXJhbCBGaXJlY3JhY2tlciBtaWNyb1ZNCiAgLSBSZXBvOiBkdW5rZGVlL2Rlc2t0b3AtdHV0b3JpYWwgQCBicmFuY2ggY2xhdWRlL3ZtLXN0YXR1cy1jaGVjay1zMDgwMHgKICAtIFNUQVRFLm1kIGFuZCBkb21pbmlvbl9sb2cudHh0IGRpZCBOT1QgZXhpc3Qg4oCUIGNyZWF0ZWQgYm90aCB0aGlzIHNlc3Npb24KICAtIEVncmVzcyBibG9ja2VkOiBjYW5ub3QgcmVhY2ggZG9taW5pb25oZWFsaW5nLm9yZywgYXBpLmd1bXJvYWQuY29tLCBvciBhbnkgcHJvZCBzZXJ2aWNlIGZyb20gdGhpcyBjb250YWluZXIKICAtIEFsbCBsaXZlIGhlYWx0aCBjaGVja3MgcmVxdWlyZSBwcm9kIFZNIGFjY2VzcyBvciBicm93c2VyCgpbMjAyNi0wNi0xNF0gW1NFU1NJT04tMDAxXSBHUk9VTkQgVFJVVEggRVNUQUJMSVNIRUQKICAtIEJhYnkgQVBJIChGbGFzayk6IGNvZGUtY29tcGxldGUsIGNoZWNrcyBHdW1yb2FkL09BTkRBL0JpbmFuY2UvWW91VHViZS9CcmV2byBzZWNyZXRzCiAgLSBEb21pbmlvbiBIZWFsaW5nIHdlYjogc3RhdGljIEhUTUwvTmdpbngsIGNvZGUtY29tcGxldGUKICAtIFlvdVR1YmUgcGlwZWxpbmU6IGNvZGUtY29tcGxldGUgKENsYXVkZSBGYWJsZSA1ICsgSGlnZ2lucyksIG5lZWRzIEFOVEhST1BJQ19BUElfS0VZICsgSGlnZ2lucyBrZXkgb24gcHJvZAogIC0gVGlrVG9rIHVwbG9hZGVyOiBjb2RlLWNvbXBsZXRlLCBuZWVkcyBPQXV0aCArIGVudiB2YXJzCiAgLSBKYXJ2aXMgb3JjaGVzdHJhdG9yOiBjb2RlLWNvbXBsZXRlLCBuZWVkcyBSZWRpcwogIC0gRmFzdEFQSSBub3RpZnk6IGNvZGUtY29tcGxldGUsIG5lZWRzIEJSRVZPX0FQSV9LRVkKICAtIE5leHQuanMgZnJvbnRlbmQ6IHNoZWxsIG9ubHksIHBhZ2VzLyBub3QgYnVpbHQgb3V0CgpbMjAyNi0wNi0xNF0gW1NFU1NJT04tMDAxXSBSRVZFTlVFIExPT1AgU1RBVFVTCiAgLSBEaXZpbmUgU292ZXJlaWdudHkgR3Vtcm9hZCBjaGVja291dDogVU5LTk9XTiBmcm9tIHRoaXMgY29udGFpbmVyCiAgLSBHdW1yb2FkIGVuZHBvaW50IGV4aXN0cyBhdCBhcGkvYXBwLnB5IC9ndW1yb2FkIHJvdXRlCiAgLSBDYW5ub3QgdmVyaWZ5IHByb2R1Y3QgaXMgcHVibGlzaGVkIG9yIGdlbmVyYXRpbmcgc2FsZXMgd2l0aG91dCBwcm9kIFZNICsgc2VjcmV0cwoKWzIwMjYtMDYtMTRdIFtTRVNTSU9OLTAwMV0gR0FQUyBJREVOVElGSUVECiAgLSBObyBTVEFURS5tZCBvciBkb21pbmlvbl9sb2cudHh0IGV4aXN0ZWQgYmVmb3JlIHRoaXMgc2Vzc2lvbiAoY3JlYXRlZCBub3cpCiAgLSBMaXZlIHNlcnZpY2UgaGVhbHRoOiBhbGwgVU5LTk9XTiAoZWdyZXNzIGJsb2NrZWQpCiAgLSBUaWtUb2sgT0F1dGg6IG5vdCB0ZXN0ZWQKICAtIFRyYWRpbmcgcGFwZXItbW9kZTogbm90IHRlc3RlZAogIC0gSGlnZ2lucyB2aWRlbyBBUEk6IGtleSBub3QgY29uZmlybWVkCgo9PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PQoKWzIwMjYtMDYtMTVdIFtTRVNTSU9OLTAwMl0gT1BFTkVECiAgLSBCcmFuY2g6IGNsYXVkZS92bS1zdGF0dXMtY2hlY2stczA4MDB4CiAgLSBPYmplY3RpdmU6IEdldCByZWFsIHJldmVudWUuIEd1bXJvYWQgcHJvZHVjdCDihpIgd2Vic2l0ZSDihpIgbGl2ZSBjaGVja291dAogIC0gQ29uc3RyYWludDogTm8gU1NIL2djbG91ZCBmcm9tIHRoaXMgY29udGFpbmVyLiBHaXRIdWIgQWN0aW9ucyA9IG9ubHkgYnJpZGdlIHRvIHByb2QgVk0uCgpbMjAyNi0wNi0xNV0gW1NFU1NJT04tMDAyXSBHVU1ST0FEIFRPS0VOIFZFUklGSUVECiAgLSBPbGQgR2l0SHViIFNlY3JldCBgR1VNUk9BRF9UT0tFTmAgd2FzIHN0YWxlICg0MDEsIGVtcHR5IGJvZHkpCiAgLSBEZXdheW5lIHNlbnQgcmVhbCB0b2tlbiB2aWEgY2hhdCBzY3JlZW5zaG90OiBgXzdLNlJaVmNfUEVoZHo0V3lHSkpURXcxVEFsV3JmNVMwLUd2QUtEX0NWWWAKICAtIEd1bXJvYWQgc2VsbGVyX2lkOiBgcktfZVNuR0I3YUFWcXlwLW9YcThGQT09YAogIC0gQXBwOiAiRG9taW5pb24gRW1waXJlIiDigJQgQXBwbGljYXRpb24gSUQ6IGBaYkRCNVVBNGx1d3R6S0Y0cDdYSjhKOXBTZHNsUmhqY2hIRWJjME53cE9zYAogIC0gVmVyaWZpZWQgdG9rZW4gdmlhIGd1bXJvYWQtY2hlY2sueW1sIHdvcmtmbG93IChBY3Rpb25zIHJ1bik6IEhUVFAgMjAwLCBgeyJzdWNjZXNzIjp0cnVlLCJwcm9kdWN0cyI6W119YAogIC0gTm90ZTogR2l0SHViIFNlY3JldCBgR1VNUk9BRF9UT0tFTmAgc3RpbGwgaGFzIG9sZCB2YWx1ZSDigJQgdXBkYXRlIG1hbnVhbGx5CgpbMjAyNi0wNi0xNV0gW1NFU1NJT04tMDAyXSBQUk9EVUNUIENSRUFURUQKICAtIFdvcmtmbG93OiBjcmVhdGUtcHJvZHVjdC55bWwgKHB1c2hlZCB0byBtYWluIHZpYSBHaXRIdWIgTUNQLCB0cmlnZ2VyZWQgdmlhIEFjdGlvbnMpCiAgLSBQcm9kdWN0IG5hbWU6ICJEaXZpbmUgU292ZXJlaWdudHkgQmx1ZXByaW50OiBCcmVhayBGcmVlLCBIZWFsIFlvdXIgTWluZHNldCAmIEJ1aWxkIFlvdXIgRW1waXJlIgogIC0gUHJpY2U6ICQ0NyAoNDcwMCBjZW50cykKICAtIFByb2R1Y3QgSUQ6IGBSZ2M0Z3phLThoTHg3WVNJdTN2QlFBPT1gCiAgLSBBUEkgY29uZmlybWVkIGNyZWF0aW9uOiBgeyJzdWNjZXNzIjp0cnVlLCJwcm9kdWN0Ijp7Li4ufX1gCiAgLSBVc2VkIHRva2VuIGFzIHdvcmtmbG93X2Rpc3BhdGNoIGlucHV0IChub3QgY29tbWl0dGVkIHRvIHJlcG8pCgpbMjAyNi0wNi0xNV0gW1NFU1NJT04tMDAyXSBQUk9EVUNUIFBVQkxJU0hFRAogIC0gV29ya2Zsb3c6IHB1Ymxpc2gtcHJvZHVjdC55bWwg4oCUIHJhbiBQVVQgL3YyL3Byb2R1Y3RzL1JnYzRnemEtOGhMeDdZU0l1M3ZCUUE9PQogIC0gU2hvcnQgVVJMIHJldHVybmVkOiBgaHR0cHM6Ly9zaW5nbGV0b244MjguZ3Vtcm9hZC5jb20vbC94bmZ5d2AKICAtIEFQSSBub3RlOiByZXNwb25zZSBzaG93cyBgcHVibGlzaGVkOiBmYWxzZWAgZGVzcGl0ZSBwdWJsaXNoIGNhbGwgc3VjY2VlZGluZwogIC0gUm9vdCBjYXVzZSBsaWtlbHk6IEd1bXJvYWQgcmVxdWlyZXMgYXQgbGVhc3Qgb25lIGZpbGUgdXBsb2FkIHRvIG1hcmsgcHJvZHVjdCBhcyB0cnVseSBsaXZlCiAgLSBBQ1RJT04gTkVFREVEOiBVcGxvYWQgYSBQREYgYXQgaHR0cHM6Ly9hcHAuZ3Vtcm9hZC5jb20vcHJvZHVjdHMvUmdjNGd6YS04aEx4N1lTSXUzdkJRQT09L2VkaXQKClsyMDI2LTA2LTE1XSBbU0VTU0lPTi0wMDJdIFdFQlNJVEUgQ1RBIFdJUkVECiAgLSBGaWxlOiB3ZWIvcHVibGljL2luZGV4Lmh0bWwKICAtIENoYW5nZWQ6IENUQSBidXR0b24gbm93IHBvaW50cyB0byBgaHR0cHM6Ly9zaW5nbGV0b244MjguZ3Vtcm9hZC5jb20vbC94bmZ5d2AKICAtIEJ1dHRvbiB0ZXh0IHVwZGF0ZWQgdG86ICJTdGFydCB0aGUgSm91cm5leSDigJQgJDQ3IgogIC0gUHJldmlvdXMgaW5jb3JyZWN0IFVSTCAoZnJvbSBwcmlvciBjb21taXQpOiBgaHR0cHM6Ly9kdW5rZGVlLmd1bXJvYWQuY29tL2wvUmdjNGd6YS04aEx4N1lTSXUzdkJRQWAg4oCUIGNvcnJlY3RlZAogIC0gUHVzaGVkIHRvIGRldiBicmFuY2gsIHBlbmRpbmcgbWVyZ2UgdG8gbWFpbiBmb3IgZGVwbG95bWVudAoKWzIwMjYtMDYtMTVdIFtTRVNTSU9OLTAwMl0gQkFCWS5ZTUwgRklYRUQKICAtIFdhcyBicm9rZW46IHVzZWQgZ29vZ2xlLWdpdGh1Yi1hY3Rpb25zL2F1dGggd2l0aG91dCBjcmVkZW50aWFsc19qc29uIG9yIHdvcmtsb2FkX2lkZW50aXR5X3Byb3ZpZGVyCiAgLSBGaXhlZDogcmV2ZXJ0ZWQgdG8gYXBwbGVib3kvc3NoLWFjdGlvbkB2MS4yLjAgKG9yaWdpbmFsIFNTSCBhcHByb2FjaCkKICAtIFN0aWxsIG5lZWRzIEdpdEh1YiBTZWNyZXRzOiBWTV9IT1NUPTM0LjczLjcyLjMwLCBWTV9VU0VSPW1hbGFjaGlzaW5nbGV0b244LCBWTV9TU0hfS0VZPTxwcml2YXRlIGtleT4KClsyMDI2LTA2LTE1XSBbU0VTU0lPTi0wMDJdIEhBTkRPRkYgTk9URQogIFByaW9yaXR5IG9yZGVyIGZvciBuZXh0IHNlc3Npb246CiAgMS4gUkVWRU5VRTogVXBsb2FkIGEgUERGIGZpbGUgdG8gR3Vtcm9hZCBkYXNoYm9hcmQgdG8gbWFrZSBwcm9kdWN0IGZ1bGx5IHB1cmNoYXNhYmxlCiAgICAgVVJMOiBodHRwczovL2FwcC5ndW1yb2FkLmNvbS9wcm9kdWN0cy9SZ2M0Z3phLThoTHg3WVNJdTN2QlFBPT0vZWRpdAogIDIuIFNFQ1JFVFM6IFVwZGF0ZSBHaXRIdWIgU2VjcmV0czoKICAgICAtIEdVTVJPQURfVE9LRU4g4oaSIF83SzZSWlZjX1BFaGR6NFd5R0pKVEV3MVRBbFdyZjVTMC1HdkFLRF9DVlkKICAgICAtIFZNX0hPU1Qg4oaSIDM0LjczLjcyLjMwCiAgICAgLSBWTV9VU0VSIOKGkiBtYWxhY2hpc2luZ2xldG9uOAogICAgIC0gVk1fU1NIX0tFWSDihpIgKHByaXZhdGUgU1NIIGtleSBmb3IgcHJvZCBWTSkKICAzLiBJTkZSQTogT25jZSBWTSBzZWNyZXRzIGFyZSBzZXQsIHRyaWdnZXIgYmFieS55bWwgd29ya2Zsb3dfZGlzcGF0Y2ggdG8gZGVwbG95CiAgNC4gVkVSSUZZOiBjdXJsIGh0dHBzOi8vc2luZ2xldG9uODI4Lmd1bXJvYWQuY29tL2wveG5meXcgaW4gYnJvd3NlciDigJQgY29uZmlybSBjaGVja291dCBwYWdlIGxvYWRzCj09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09Cg==
+DOMINION EMPIRE — SESSION LOG
+Format: [DATE] [SESSION] ACTION / FINDING / DECISION
+===========================================================
+
+[2026-06-14] [SESSION-001] VM AUDIT COMPLETE
+  - Container: Ubuntu 24.04.4, 4 vCPU, 15GB RAM, 252GB disk
+  - Running as root in ephemeral Firecracker microVM
+  - Repo: dunkdee/desktop-tutorial @ branch claude/vm-status-check-s0800x
+  - STATE.md and dominion_log.txt did NOT exist — created both this session
+  - Egress blocked: cannot reach dominionhealing.org, api.gumroad.com, or any prod service from this container
+  - All live health checks require prod VM access or browser
+
+[2026-06-14] [SESSION-001] GROUND TRUTH ESTABLISHED
+  - Baby API (Flask): code-complete, checks Gumroad/OANDA/Binance/YouTube/Brevo secrets
+  - Dominion Healing web: static HTML/Nginx, code-complete
+  - YouTube pipeline: code-complete (Claude Fable 5 + Higgins), needs ANTHROPIC_API_KEY + Higgins key on prod
+  - TikTok uploader: code-complete, needs OAuth + env vars
+  - Jarvis orchestrator: code-complete, needs Redis
+  - FastAPI notify: code-complete, needs BREVO_API_KEY
+  - Next.js frontend: shell only, pages/ not built out
+
+[2026-06-14] [SESSION-001] REVENUE LOOP STATUS
+  - Divine Sovereignty Gumroad checkout: UNKNOWN from this container
+  - Gumroad endpoint exists at api/app.py /gumroad route
+  - Cannot verify product is published or generating sales without prod VM + secrets
+
+[2026-06-14] [SESSION-001] GAPS IDENTIFIED
+  - No STATE.md or dominion_log.txt existed before this session (created now)
+  - Live service health: all UNKNOWN (egress blocked)
+  - TikTok OAuth: not tested
+  - Trading paper-mode: not tested
+  - Higgins video API: key not confirmed
+
+===========================================================
+
+[2026-06-15] [SESSION-002] OPENED
+  - Branch: claude/vm-status-check-s0800x
+  - Objective: Get real revenue. Gumroad product → website → live checkout
+  - Constraint: No SSH/gcloud from this container. GitHub Actions = only bridge to prod VM.
+
+[2026-06-15] [SESSION-002] GUMROAD TOKEN VERIFIED
+  - Old GitHub Secret `GUMROAD_TOKEN` was stale (401, empty body)
+  - Dewayne sent real token via chat screenshot: `_7K6RZVc_PEhdz4WyGJJTEw1TAlWrf5S0-GvAKD_CVY`
+  - Gumroad seller_id: `rK_eSnGB7aAVqyp-oXq8FA==`
+  - App: "Dominion Empire" — Application ID: `ZbDB5UA4luwtzKF4p7XJ8J9pSdslRhjchHEbc0NwpOs`
+  - Verified token via gumroad-check.yml workflow (Actions run): HTTP 200, `{"success":true,"products":[]}`
+  - Note: GitHub Secret `GUMROAD_TOKEN` still has old value — update manually
+
+[2026-06-15] [SESSION-002] PRODUCT CREATED
+  - Workflow: create-product.yml (pushed to main via GitHub MCP, triggered via Actions)
+  - Product name: "Divine Sovereignty Blueprint: Break Free, Heal Your Mindset & Build Your Empire"
+  - Price: $47 (4700 cents)
+  - Product ID: `Rgc4gza-8hLx7YSIu3vBQA==`
+  - API confirmed creation: `{"success":true,"product":{...}}`
+  - Used token as workflow_dispatch input (not committed to repo)
+
+[2026-06-15] [SESSION-002] PRODUCT PUBLISHED
+  - Workflow: publish-product.yml — ran PUT /v2/products/Rgc4gza-8hLx7YSIu3vBQA==
+  - Short URL returned: `https://singleton828.gumroad.com/l/xnfyw`
+  - API note: response shows `published: false` despite publish call succeeding
+  - Root cause likely: Gumroad requires at least one file upload to mark product as truly live
+  - ACTION NEEDED: Upload a PDF at https://app.gumroad.com/products/Rgc4gza-8hLx7YSIu3vBQA==/edit
+
+[2026-06-15] [SESSION-002] WEBSITE CTA WIRED
+  - File: web/public/index.html
+  - Changed: CTA button now points to `https://singleton828.gumroad.com/l/xnfyw`
+  - Button text updated to: "Start the Journey — $47"
+  - Previous incorrect URL (from prior commit): `https://dunkdee.gumroad.com/l/Rgc4gza-8hLx7YSIu3vBQA` — corrected
+  - Pushed to dev branch, pending merge to main for deployment
+
+[2026-06-15] [SESSION-002] BABY.YML FIXED
+  - Was broken: used google-github-actions/auth without credentials_json or workload_identity_provider
+  - Fixed: reverted to appleboy/ssh-action@v1.2.0 (original SSH approach)
+  - Still needs GitHub Secrets: VM_HOST=34.73.72.30, VM_USER=malachisingleton8, VM_SSH_KEY=<private key>
+
+[2026-06-15] [SESSION-002] HANDOFF NOTE
+  Priority order for next session:
+  1. REVENUE: Upload a PDF file to Gumroad dashboard to make product fully purchasable
+     URL: https://app.gumroad.com/products/Rgc4gza-8hLx7YSIu3vBQA==/edit
+  2. SECRETS: Update GitHub Secrets:
+     - GUMROAD_TOKEN → _7K6RZVc_PEhdz4WyGJJTEw1TAlWrf5S0-GvAKD_CVY
+     - VM_HOST → 34.73.72.30
+     - VM_USER → malachisingleton8
+     - VM_SSH_KEY → (private SSH key for prod VM)
+  3. INFRA: Once VM secrets are set, trigger baby.yml workflow_dispatch to deploy
+  4. VERIFY: curl https://singleton828.gumroad.com/l/xnfyw in browser — confirm checkout page loads
+===========================================================
+
+[2026-06-15] [SESSION-003] OPENED
+  - Branch: claude/vm-status-check-s0800x
+  - Objective: Upload PDF to Gumroad product so it becomes purchasable
+  - Constraint: No egress from container, GitHub Actions = only bridge
+
+[2026-06-15] [SESSION-003] YAML BUG DIAGNOSED AND FIXED
+  - Root cause of repeated 422 errors: multi-line python3 -c at column 0 inside YAML block scalar
+  - Fix: moved Python PDF generator to scripts/gen_blueprint.py in repo
+  - Verified: workflow name now shows "Upload Blueprint PDF to Gumroad"
+
+[2026-06-15] [SESSION-003] PDF GENERATED + HOSTED
+  - script: scripts/gen_blueprint.py — 7404 bytes, 5 pages
+  - Content: Cover, Intro, Ch1-Ch4 (Sovereignty/Revenue/Sprint/Authority), Next Steps
+  - Hosted: https://github.com/dunkdee/desktop-tutorial/releases/download/blueprint-v1/divine-sovereignty-blueprint.pdf
+
+[2026-06-15] [SESSION-003] GUMROAD API v2 LIMITATIONS CONFIRMED
+  - /product_files: 404 (endpoint removed from API)
+  - PUT with custom_delivery_url or published=true: silently ignored
+  - Conclusion: file attachment is DASHBOARD ONLY — no API path exists
+
+===========================================================
+
+[2026-06-15] [SESSION-004] OPENED
+  - Branch: claude/vm-status-check-s0800x (synced to origin/main)
+  - Objective: Wire all Google AI Pro features into Dominion Empire ecosystem
+
+[2026-06-15] [SESSION-004] GA4 ANALYTICS WIRED INTO WEBSITE
+  - web/public/index.html: GA4 snippet added with placeholder GA4_MEASUREMENT_ID_PLACEHOLDER
+  - web/start.sh: NEW — entrypoint script; runs sed at container start to inject real GA4 ID
+  - web/Dockerfile: updated to use start.sh as CMD
+  - docker-compose.yml: dominion-web now receives GA4_MEASUREMENT_ID env var
+  - To activate: set GA4_MEASUREMENT_ID GitHub Secret → trigger baby.yml
+
+[2026-06-15] [SESSION-004] GEMINI YOUTUBE PIPELINE
+  - apps/youtube/gemini_script.py: NEW — Gemini 2.5 Pro drop-in for all script functions
+  - apps/youtube/pipeline.py: updated — SCRIPT_ENGINE=gemini switches to Gemini; Drive backup after upload
+  - apps/youtube/requirements.txt: added google-genai, google-api-python-client, google-auth
+
+[2026-06-15] [SESSION-004] DOCKER + CI/CD UPDATED
+  - docker-compose.yml: baby-api installs google-genai; all new secrets wired
+  - baby.yml: writes GEMINI_API_KEY, GOOGLE_SERVICE_ACCOUNT_JSON, GA4_MEASUREMENT_ID to .env
+  - baby.yml: pulls latest code + restarts ALL services (not just baby-api)
+
+[2026-06-15] [SESSION-004] HANDOFF NOTE
+  Three keys unlock everything:
+  1. GEMINI_API_KEY → get from aistudio.google.com → GitHub Secrets
+  2. GA4_MEASUREMENT_ID → analytics.google.com → create property → G-XXXXXXXXXX → GitHub Secrets
+  3. GOOGLE_SERVICE_ACCOUNT_JSON → GCP Console → IAM → Service Accounts → JSON → GitHub Secrets
+  Once set: trigger baby.yml → entire stack goes live with Gemini + GA4 + Drive backup
+  Gumroad: still needs 1 dashboard tap → Content tab → upload PDF → Save & Publish
+===========================================================
