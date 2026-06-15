@@ -12,39 +12,48 @@ jobs:
           GUMROAD_TOKEN: ${{ secrets.GUMROAD_TOKEN }}
         run: |
           echo "👑 Checking Gumroad..."
-          RESPONSE=$(curl -sf -H "Authorization: Bearer $GUMROAD_TOKEN" \
-            https://api.gumroad.com/v2/products 2>&1) || {
-            echo "ERROR: curl failed — token may be invalid or not set"
-            exit 1
-          }
+          echo "Token length: ${#GUMROAD_TOKEN} chars"
 
-          echo "$RESPONSE" | python3 -c "
+          HTTP_STATUS=$(curl -s -o /tmp/gumroad_resp.json -w "%{http_code}" \
+            -H "Authorization: Bearer $GUMROAD_TOKEN" \
+            https://api.gumroad.com/v2/products)
+
+          echo "HTTP status: $HTTP_STATUS"
+          echo "Response body:"
+          cat /tmp/gumroad_resp.json
+
+          echo ""
+          python3 -c "
           import json, sys
-          data = json.load(sys.stdin)
+          try:
+              data = json.load(open('/tmp/gumroad_resp.json'))
+          except Exception as e:
+              print('Could not parse JSON:', e)
+              sys.exit(1)
+
           if not data.get('success'):
               print('FAILED:', data.get('message', 'unknown error'))
               sys.exit(1)
+
           products = data.get('products', [])
           print(f'Token valid. Products found: {len(products)}')
           for p in products:
               status = 'PUBLISHED' if p.get('published') else 'draft'
-              print(f'  [{status}] {p[\"name\"]} — \${p[\"price\"]/100:.2f} — {p.get(\"short_url\",\"no url\")}')
+              price = p.get('price', 0) / 100
+              print(f'  [{status}] {p[\"name\"]} — \${price:.2f} — {p.get(\"short_url\",\"no url\")}')
           if not products:
               print('  No products yet — ready to create.')
           "
 
       - name: Check recent sales
+        if: success()
         env:
           GUMROAD_TOKEN: ${{ secrets.GUMROAD_TOKEN }}
         run: |
           echo ""
           echo "👑 Checking Gumroad sales..."
-          RESPONSE=$(curl -sf -H "Authorization: Bearer $GUMROAD_TOKEN" \
-            https://api.gumroad.com/v2/sales 2>&1) || {
-            echo "ERROR: sales check failed"
-            exit 0
-          }
-          echo "$RESPONSE" | python3 -c "
+          curl -s -H "Authorization: Bearer $GUMROAD_TOKEN" \
+            https://api.gumroad.com/v2/sales | python3 -c "
           import json, sys
           data = json.load(sys.stdin)
           sales = data.get('sales', [])
