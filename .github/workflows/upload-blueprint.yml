@@ -49,13 +49,4 @@ jobs:
           TOKEN: ${{ inputs.token }}
           PRODUCT_ID: "Rgc4gza-8hLx7YSIu3vBQA=="
         run: |
-          curl -s -H "Authorization: Bearer $TOKEN" \
-            "https://api.gumroad.com/v2/products/$PRODUCT_ID" | python3 -c "
-import json, sys
-d = json.load(sys.stdin)
-p = d.get('product', {})
-print('Name:', p.get('name'))
-print('Published:', p.get('published'))
-print('Files:', len(p.get('product_files', [])))
-print('URL:', p.get('short_url'))
-"
+          curl -s -H "Authorization: Bearer $TOKEN" "https://api.gumroad.com/v2/products/$PRODUCT_ID" | python3 -c "import json,sys; d=json.load(sys.stdin); p=d.get('product',{}); print('Name:',p.get('name')); print('Published:',p.get('published')); print('Files:',len(p.get('product_files',[]))); print('URL:',p.get('short_url'))"
