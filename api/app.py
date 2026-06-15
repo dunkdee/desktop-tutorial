@@ -18,15 +18,31 @@ def gumroad_get(path, token, params=None):
 @app.route("/")
 def root():
     return {
-        "status": "👑 Baby is LIVE",
+        "status": "● Dominion Empire API — LIVE",
         "integrations": {
-            "YouTube_API_KEY": flag(os.getenv("YOUTUBE_API_KEY")),
-            "Gumroad_Token": flag(os.getenv("GUMROAD_TOKEN")),
-            "OANDA_Account": flag(os.getenv("OANDA_ACCOUNT_ID")),
-            "BinanceUS_API": flag(os.getenv("BINANCE_API_KEY")),
-            "Brevo_API": flag(os.getenv("BREVO_API_KEY"))
+            "YouTube_API_KEY":    flag(os.getenv("YOUTUBE_API_KEY")),
+            "Gumroad_Token":      flag(os.getenv("GUMROAD_TOKEN")),
+            "OANDA_Account":      flag(os.getenv("OANDA_ACCOUNT_ID")),
+            "BinanceUS_API":      flag(os.getenv("BINANCE_API_KEY")),
+            "Brevo_API":          flag(os.getenv("BREVO_API_KEY")),
+            "Gemini_API":         flag(os.getenv("GEMINI_API_KEY")),
+            "Google_Drive":       flag(os.getenv("GOOGLE_SERVICE_ACCOUNT_JSON")),
+            "Google_Analytics":   flag(os.getenv("GA4_MEASUREMENT_ID")),
         }
     }
+
+@app.route("/gemini")
+def gemini_status():
+    key = os.getenv("GEMINI_API_KEY")
+    if not key:
+        return jsonify(error="GEMINI_API_KEY not set"), 400
+    try:
+        from google import genai
+        c = genai.Client(api_key=key)
+        r = c.models.generate_content(model="gemini-2.5-flash", contents="Reply with one word: ONLINE")
+        return jsonify({"status": "connected", "response": r.text.strip()})
+    except Exception as e:
+        return jsonify({"status": "error", "detail": str(e)}), 500
 
 @app.route("/youtube")
 def youtube():
@@ -42,10 +58,9 @@ def youtube():
 
 @app.route("/gumroad")
 def gumroad():
-    """Lists all products — confirms token is valid."""
     token = os.getenv("GUMROAD_TOKEN")
     if not token:
-        return jsonify(error="GUMROAD_TOKEN not set — add it to the .env file on the prod VM"), 400
+        return jsonify(error="GUMROAD_TOKEN not set"), 400
     r = gumroad_get("products", token)
     data = r.json()
     if not data.get("success"):
@@ -68,7 +83,6 @@ def gumroad():
 
 @app.route("/gumroad/sales")
 def gumroad_sales():
-    """Shows recent sales — this is the revenue pulse check."""
     token = os.getenv("GUMROAD_TOKEN")
     if not token:
         return jsonify(error="GUMROAD_TOKEN not set"), 400

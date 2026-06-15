@@ -1,0 +1,57 @@
+name: Generate Content with Gemini
+
+on:
+  workflow_dispatch:
+    inputs:
+      content_type:
+        description: "Type: youtube | tiktok | email | social | research | product"
+        required: true
+        type: choice
+        options:
+          - youtube
+          - tiktok
+          - email
+          - social
+          - research
+          - product
+      topic:
+        description: "Topic, query, or product name"
+        required: true
+        type: string
+      platform:
+        description: "Platform (for social posts): twitter | instagram | linkedin | facebook"
+        required: false
+        default: "twitter"
+        type: string
+      duration_minutes:
+        description: "YouTube video duration in minutes"
+        required: false
+        default: "8"
+        type: string
+
+jobs:
+  generate:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install dependencies
+        run: pip install google-genai --quiet
+
+      - name: Generate content
+        env:
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+        run: |
+          cd apps/gemini
+          python engine.py ${{ inputs.content_type }} \
+            --topic "${{ inputs.topic }}" \
+            --platform "${{ inputs.platform }}" \
+            --duration ${{ inputs.duration_minutes }} \
+            | tee /tmp/content_output.json
+
+      - name: Display output
+        run: |
+          echo "=== GENERATED CONTENT ==="
+          cat /tmp/content_output.json
+          echo "========================="
