@@ -36,14 +36,14 @@ services:
   baby-logger:
     image: alpine:latest
     container_name: baby-logger
-    command: ["sh", "-c", "while true; do echo '👑 Baby heartbeat: empire integrations running'; sleep 30; done"]
+    command: ["sh", "-c", "while true; do echo 'Baby heartbeat: empire integrations running'; sleep 30; done"]
     restart: always
 
   dominion-web:
     build: ./web
     container_name: dominion-web
     ports:
-      - "80:80"
+      - "8090:80"
     restart: always
     environment:
       GA4_MEASUREMENT_ID: ${GA4_MEASUREMENT_ID:-G-XXXXXXXXXX}
