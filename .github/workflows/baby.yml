@@ -14,70 +14,42 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
-      - name: Authenticate to Google Cloud
-        uses: google-github-actions/auth@v2
+      - name: Deploy to prod VM via SSH
+        uses: appleboy/ssh-action@v1.2.0
         with:
-          credentials_json: ${{ secrets.GCP_SA_KEY }}
+          host: ${{ secrets.VM_HOST }}
+          username: ${{ secrets.VM_USER }}
+          key: ${{ secrets.VM_SSH_KEY }}
+          script: |
+            set -e
+            echo "Writing .env..."
+            cd ~/desktop-tutorial
+            {
+              printf 'GUMROAD_TOKEN=%s\n'               '${{ secrets.GUMROAD_TOKEN }}'
+              printf 'BREVO_API_KEY=%s\n'               '${{ secrets.BREVO_API_KEY }}'
+              printf 'YOUTUBE_API_KEY=%s\n'             '${{ secrets.YOUTUBE_API_KEY }}'
+              printf 'YOUTUBE_CLIENT_ID=%s\n'           '${{ secrets.YOUTUBE_CLIENT_ID }}'
+              printf 'YOUTUBE_CLIENT_SECRET=%s\n'       '${{ secrets.YOUTUBE_CLIENT_SECRET }}'
+              printf 'OANDA_API_KEY=%s\n'               '${{ secrets.OANDA_API_KEY }}'
+              printf 'OANDA_ACCOUNT_ID=%s\n'            '${{ secrets.OANDA_ACCOUNT_ID }}'
+              printf 'BINANCE_API_KEY=%s\n'             '${{ secrets.BINANCE_API_KEY }}'
+              printf 'BINANCE_API_SECRET=%s\n'          '${{ secrets.BINANCE_API_SECRET }}'
+              printf 'TIKTOK_CLIENT_ID=%s\n'            '${{ secrets.TIKTOK_CLIENT_ID }}'
+              printf 'TIKTOK_CLIENT_SECRET=%s\n'        '${{ secrets.TIKTOK_CLIENT_SECRET }}'
+              printf 'ANTHROPIC_API_KEY=%s\n'           '${{ secrets.ANTHROPIC_API_KEY }}'
+              printf 'GEMINI_API_KEY=%s\n'              '${{ secrets.GEMINI_API_KEY }}'
+              printf 'GA4_MEASUREMENT_ID=%s\n'          '${{ secrets.GA4_MEASUREMENT_ID }}'
+            } > .env
+            echo ".env written"
 
-      - name: Setup gcloud
-        uses: google-github-actions/setup-gcloud@v2
-        with:
-          project_id: ${{ secrets.GCP_PROJECT_ID }}
+            echo "Pulling latest code..."
+            git pull origin main
 
-      - name: Deploy via gcloud compute ssh
-        env:
-          GUMROAD_TOKEN: ${{ secrets.GUMROAD_TOKEN }}
-          BREVO_API_KEY: ${{ secrets.BREVO_API_KEY }}
-          YOUTUBE_API_KEY: ${{ secrets.YOUTUBE_API_KEY }}
-          YOUTUBE_CLIENT_ID: ${{ secrets.YOUTUBE_CLIENT_ID }}
-          YOUTUBE_CLIENT_SECRET: ${{ secrets.YOUTUBE_CLIENT_SECRET }}
-          OANDA_API_KEY: ${{ secrets.OANDA_API_KEY }}
-          OANDA_ACCOUNT_ID: ${{ secrets.OANDA_ACCOUNT_ID }}
-          BINANCE_API_KEY: ${{ secrets.BINANCE_API_KEY }}
-          BINANCE_API_SECRET: ${{ secrets.BINANCE_API_SECRET }}
-          TIKTOK_CLIENT_ID: ${{ secrets.TIKTOK_CLIENT_ID }}
-          TIKTOK_CLIENT_SECRET: ${{ secrets.TIKTOK_CLIENT_SECRET }}
-          N8N_TOOL_SECRET: ${{ secrets.N8N_TOOL_SECRET }}
-          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
-          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
-          GOOGLE_SERVICE_ACCOUNT_JSON: ${{ secrets.GOOGLE_SERVICE_ACCOUNT_JSON }}
-          GA4_MEASUREMENT_ID: ${{ secrets.GA4_MEASUREMENT_ID }}
-          GCP_ZONE: ${{ secrets.GCP_REGION }}
-        run: |
-          ZONE="${GCP_ZONE:-us-central1-a}"
-          INSTANCE="foundation-vm"
-          PROJECT="${{ secrets.GCP_PROJECT_ID }}"
+            echo "Starting all services..."
+            docker compose up -d --build
 
-          gcloud compute ssh "malachisingleton8@${INSTANCE}" \
-            --project="${PROJECT}" \
-            --zone="${ZONE}" \
-            --tunnel-through-iap \
-            --command="
-              set -e
-              echo '👑 Writing .env...'
-              cat > ~/.env <<'ENVEOF'
-          GUMROAD_TOKEN=${GUMROAD_TOKEN}
-          BREVO_API_KEY=${BREVO_API_KEY}
-          YOUTUBE_API_KEY=${YOUTUBE_API_KEY}
-          YOUTUBE_CLIENT_ID=${YOUTUBE_CLIENT_ID}
-          YOUTUBE_CLIENT_SECRET=${YOUTUBE_CLIENT_SECRET}
-          OANDA_API_KEY=${OANDA_API_KEY}
-          OANDA_ACCOUNT_ID=${OANDA_ACCOUNT_ID}
-          BINANCE_API_KEY=${BINANCE_API_KEY}
-          BINANCE_API_SECRET=${BINANCE_API_SECRET}
-          TIKTOK_CLIENT_ID=${TIKTOK_CLIENT_ID}
-          TIKTOK_CLIENT_SECRET=${TIKTOK_CLIENT_SECRET}
-          N8N_TOOL_SECRET=${N8N_TOOL_SECRET}
-          ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY}
-          GEMINI_API_KEY=${GEMINI_API_KEY}
-          GOOGLE_SERVICE_ACCOUNT_JSON=${GOOGLE_SERVICE_ACCOUNT_JSON}
-          GA4_MEASUREMENT_ID=${GA4_MEASUREMENT_ID}
-          ENVEOF
-              echo '👑 Pulling latest code...'
-              cd ~ && git -C desktop-tutorial pull origin main || true
-              echo '👑 Starting services...'
-              docker compose up -d --build
-              sleep 10
-              curl -sf http://localhost:8080/ && echo ' baby-api OK'
-              curl -sf http://localhost:80/health && echo ' web OK'
-            "
+            sleep 10
+
+            echo "Health checks..."
+            curl -sf http://localhost:8080/ && echo "baby-api OK" || echo "baby-api FAILED"
+            curl -sf http://localhost:80/health && echo "web OK" || echo "web FAILED"
