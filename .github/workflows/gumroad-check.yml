@@ -1,0 +1,55 @@
+name: Gumroad Check
+
+on:
+  workflow_dispatch:
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check Gumroad token and list products
+        env:
+          GUMROAD_TOKEN: ${{ secrets.GUMROAD_TOKEN }}
+        run: |
+          echo "👑 Checking Gumroad..."
+          RESPONSE=$(curl -sf -H "Authorization: Bearer $GUMROAD_TOKEN" \
+            https://api.gumroad.com/v2/products 2>&1) || {
+            echo "ERROR: curl failed — token may be invalid or not set"
+            exit 1
+          }
+
+          echo "$RESPONSE" | python3 -c "
+          import json, sys
+          data = json.load(sys.stdin)
+          if not data.get('success'):
+              print('FAILED:', data.get('message', 'unknown error'))
+              sys.exit(1)
+          products = data.get('products', [])
+          print(f'Token valid. Products found: {len(products)}')
+          for p in products:
+              status = 'PUBLISHED' if p.get('published') else 'draft'
+              print(f'  [{status}] {p[\"name\"]} — \${p[\"price\"]/100:.2f} — {p.get(\"short_url\",\"no url\")}')
+          if not products:
+              print('  No products yet — ready to create.')
+          "
+
+      - name: Check recent sales
+        env:
+          GUMROAD_TOKEN: ${{ secrets.GUMROAD_TOKEN }}
+        run: |
+          echo ""
+          echo "👑 Checking Gumroad sales..."
+          RESPONSE=$(curl -sf -H "Authorization: Bearer $GUMROAD_TOKEN" \
+            https://api.gumroad.com/v2/sales 2>&1) || {
+            echo "ERROR: sales check failed"
+            exit 0
+          }
+          echo "$RESPONSE" | python3 -c "
+          import json, sys
+          data = json.load(sys.stdin)
+          sales = data.get('sales', [])
+          total = sum(s.get('price',0) for s in sales) / 100
+          print(f'Total sales: {len(sales)} — Revenue: \${total:.2f}')
+          for s in sales[:5]:
+              print(f'  {s.get(\"created_at\",\"?\")[:10]} — {s.get(\"product_name\")} — \${s.get(\"price\",0)/100:.2f}')
+          "
