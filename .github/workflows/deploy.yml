@@ -1,105 +1,20 @@
-name: GCP Build + Mirror Secrets + Push
+name: GCP Build + Mirror Secrets + Push (DISABLED)
+
+# This workflow references services/ paths that don't exist.
+# Deployment is handled by baby.yml via SSH.
+# Re-enable this only if moving to GCP Artifact Registry + Cloud Run.
 
 on:
   workflow_dispatch:
-  push:
-    branches: [ "main" ]
+    inputs:
+      confirm:
+        description: "Type ENABLE to run this workflow"
+        required: true
 
 jobs:
   build-and-push:
+    if: ${{ github.event.inputs.confirm == 'ENABLE' }}
     runs-on: ubuntu-latest
-    permissions:
-      contents: read
-      id-token: write
-    env:
-      PROJECT_ID: ${{ secrets.GCP_PROJECT_ID }}
-      REGION: ${{ secrets.GCP_REGION }}
-      AR_HOST: ${{ secrets.GCP_REGION }}-docker.pkg.dev
-      AR_REPO: dominion
-      ENV_SECRET_NAME: dominion-env
-
     steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-
-      - name: Authenticate to Google Cloud
-        uses: google-github-actions/auth@v2
-        with:
-          credentials_json: ${{ secrets.GCP_SA_KEY }}
-
-      - name: Setup gcloud
-        uses: google-github-actions/setup-gcloud@v2
-        with:
-          project_id: ${{ secrets.GCP_PROJECT_ID }}
-
-      - name: Enable AR docker auth
-        run: gcloud auth configure-docker ${{ env.AR_HOST }} --quiet
-
-      - name: Ensure Artifact Registry repo exists
-        run: |
-          gcloud artifacts repositories describe "${{ env.AR_REPO }}" --location "${{ env.REGION }}" \
-          || gcloud artifacts repositories create "${{ env.AR_REPO }}" \
-               --repository-format=docker --location="${{ env.REGION }}" --description="Dominion images"
-
-      - name: Compose .env from GitHub secrets and upload to Secret Manager
-        run: |
-          set -e
-          cat > .env <<'EOF'
-          ENVIRONMENT=production
-          DOMAIN=${{ secrets.DOMAIN }}
-          APP_PORT=8080
-          SECRET_KEY=${{ secrets.APP_SECRET_KEY }}
-
-          # DB defaults
-          POSTGRES_USER=dominion
-          POSTGRES_PASSWORD=dominion_pass
-          POSTGRES_DB=dominion_db
-          REDIS_URL=redis://redis:6379/0
-
-          # YouTube / Google
-          YOUTUBE_OAUTH_CLIENT_ID=${{ secrets.YOUTUBE_CLIENT_ID }}
-          YOUTUBE_OAUTH_CLIENT_SECRET=${{ secrets.YOUTUBE_CLIENT_SECRET }}
-          YOUTUBE_ACCESS_TOKEN=${{ secrets.YOUTUBE_ACCESS_TOKEN }}
-          YOUTUBE_REFRESH_TOKEN=${{ secrets.YOUTUBE_REFRESH_TOKEN }}
-
-          # TikTok
-          TIKTOK_CLIENT_KEY=${{ secrets.TIKTOK_CLIENT_KEY }}
-          TIKTOK_CLIENT_SECRET=${{ secrets.TIKTOK_CLIENT_SECRET }}
-          TIKTOK_ACCESS_TOKEN=${{ secrets.TIKTOK_ACCESS_TOKEN }}
-
-          # Gumroad, Brevo, OANDA, Binance
-          GUMROAD_TOKEN=${{ secrets.GUMROAD_TOKEN }}
-          BREVO_API_KEY=${{ secrets.BREVO_API_KEY }}
-          OANDA_API_KEY=${{ secrets.OANDA_API_KEY }}
-          BINANCE_API_KEY=${{ secrets.BINANCE_API_KEY }}
-          BINANCE_API_SECRET=${{ secrets.BINANCE_API_SECRET }}
-
-          # SMTP
-          SMTP_HOST=${{ secrets.SMTP_HOST }}
-          SMTP_PORT=${{ secrets.SMTP_PORT }}
-          SMTP_USER=${{ secrets.SMTP_USER }}
-          SMTP_PASS=${{ secrets.SMTP_PASS }}
-          SENDER_EMAIL=${{ secrets.SENDER_EMAIL }}
-
-          # AR routing
-          GCP_PROJECT_ID=${{ secrets.GCP_PROJECT_ID }}
-          GCP_REGION=${{ secrets.GCP_REGION }}
-          AR_HOST=${{ env.AR_HOST }}
-          AR_REPO=${{ env.AR_REPO }}
-          EOF
-
-          gcloud secrets describe "${{ env.ENV_SECRET_NAME }}" --project "${{ secrets.GCP_PROJECT_ID }}" >/dev/null 2>&1 \
-          || gcloud secrets create "${{ env.ENV_SECRET_NAME }}" --replication-policy="automatic" --project "${{ secrets.GCP_PROJECT_ID }}"
-          gcloud secrets versions add "${{ env.ENV_SECRET_NAME }}" --data-file=.env --project "${{ secrets.GCP_PROJECT_ID }}"
-
-      - name: Build & push API image
-        run: |
-          IMAGE="${{ env.AR_HOST }}/${{ env.PROJECT_ID }}/${{ env.AR_REPO }}/dominion-api:latest"
-          docker build -f services/api/Dockerfile -t "$IMAGE" services/api
-          docker push "$IMAGE"
-
-      - name: Build & push Worker image
-        run: |
-          IMAGE="${{ env.AR_HOST }}/${{ env.PROJECT_ID }}/${{ env.AR_REPO }}/dominion-worker:latest"
-          docker build -f services/worker/Dockerfile -t "$IMAGE" services/worker
-          docker push "$IMAGE"
+      - name: Placeholder
+        run: echo "GCP build pipeline not yet configured. Use baby.yml for deployment."
