@@ -2,12 +2,28 @@
 import json
 import os
 import re
+import sys
 import tempfile
 import httpx
 from pathlib import Path
 from dataclasses import dataclass, field
 
-from script_generator import generate_script, generate_scene_visuals, generate_voiceover, generate_title_and_description
+# Use Gemini script generator if SCRIPT_ENGINE=gemini, else default to Claude Fable 5
+if os.environ.get("SCRIPT_ENGINE", "").lower() == "gemini":
+    from gemini_script import (
+        generate_script,
+        generate_scene_visuals,
+        generate_voiceover,
+        generate_title_and_description,
+    )
+else:
+    from script_generator import (
+        generate_script,
+        generate_scene_visuals,
+        generate_voiceover,
+        generate_title_and_description,
+    )
+
 from video_generator import get_video_generator, VideoJob
 from youtube_uploader import upload_video
 
@@ -19,6 +35,7 @@ class PipelineResult:
     scene_count: int
     youtube_video_id: str = ""
     youtube_url: str = ""
+    drive_url: str = ""
     errors: list[str] = field(default_factory=list)
     status: str = "pending"
 
@@ -31,7 +48,6 @@ def _parse_scene_breakdown(script_text: str) -> list[dict]:
             return json.loads(match.group())
         except json.JSONDecodeError:
             pass
-    # Fallback: create a single scene from the whole script
     return [
         {
             "scene_number": 1,
@@ -62,6 +78,20 @@ def _concatenate_clips(clip_paths: list[str], output_path: str):
         raise RuntimeError("ffmpeg concat failed")
 
 
+def _backup_to_drive(video_path: str) -> str:
+    """Upload finished video to Google Drive. Returns webViewLink or empty string."""
+    if not os.environ.get("GOOGLE_SERVICE_ACCOUNT_JSON"):
+        return ""
+    try:
+        sys.path.insert(0, str(Path(__file__).parent.parent / "gemini"))
+        from drive_upload import upload_file
+        result = upload_file(video_path, "video/mp4")
+        return result.get("webViewLink", "")
+    except Exception as e:
+        print(f"[pipeline] Drive backup skipped: {e}")
+        return ""
+
+
 def run_pipeline(
     prompt: str,
     title: str,
@@ -73,7 +103,8 @@ def run_pipeline(
     generator = get_video_generator()
 
     # Step 1: Generate script
-    print(f"[pipeline] Generating script for '{title}'...")
+    engine = os.environ.get("SCRIPT_ENGINE", "claude")
+    print(f"[pipeline] Generating script for '{title}' using {engine}...")
     result.script = generate_script(prompt, title)
     scenes = _parse_scene_breakdown(result.script)
     result.scene_count = len(scenes)
@@ -105,7 +136,7 @@ def run_pipeline(
                 if completed.video_url and not completed.video_url.startswith("/tmp"):
                     _download_video(completed.video_url, clip_path)
                 else:
-                    clip_path = completed.video_url  # stub / local path
+                    clip_path = completed.video_url
                 clip_paths.append(clip_path)
             except Exception as e:
                 result.errors.append(f"Scene {i+1} error: {e}")
@@ -136,6 +167,12 @@ def run_pipeline(
             result.youtube_video_id = yt_response.get("id", "")
             result.youtube_url = f"https://www.youtube.com/watch?v={result.youtube_video_id}"
             print(f"[pipeline] Uploaded: {result.youtube_url}")
+
+            # Step 7: Backup to Google Drive
+            print("[pipeline] Backing up to Google Drive...")
+            result.drive_url = _backup_to_drive(final_video)
+            if result.drive_url:
+                print(f"[pipeline] Drive backup: {result.drive_url}")
         else:
             print("[pipeline] Skipping upload (upload=False)")
 
