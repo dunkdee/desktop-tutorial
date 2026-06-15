@@ -1,0 +1,47 @@
+name: Publish Gumroad Product
+
+on:
+  workflow_dispatch:
+    inputs:
+      token_override:
+        description: 'Gumroad access token'
+        required: false
+        type: string
+      product_id:
+        description: 'Product ID to publish'
+        required: false
+        type: string
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    env:
+      GUMROAD_TOKEN: ${{ inputs.token_override || secrets.GUMROAD_TOKEN }}
+      PRODUCT_ID: ${{ inputs.product_id || 'Rgc4gza-8hLx7YSIu3vBQA==' }}
+    steps:
+      - name: Publish product
+        run: |
+          python3 -c "
+          import os, requests, json
+
+          token = os.environ['GUMROAD_TOKEN']
+          pid   = os.environ['PRODUCT_ID']
+
+          r = requests.put(
+              f'https://api.gumroad.com/v2/products/{pid}',
+              data={'access_token': token, 'published': 'true'}
+          )
+
+          d = r.json()
+          if d.get('success'):
+              p = d['product']
+              print('PUBLISHED')
+              print('  Name:      ' + p['name'])
+              print('  Price:     \$' + str(p['price']/100))
+              print('  Published: ' + str(p['published']))
+              print('  Short URL: ' + str(p.get('short_url', 'n/a')))
+              print('  Checkout:  ' + str(p.get('short_url', '')))
+          else:
+              print('FAILED: ' + str(d.get('message', d)))
+              exit(1)
+          "
