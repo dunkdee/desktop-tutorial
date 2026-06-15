@@ -2,63 +2,65 @@ name: Gumroad Check
 
 on:
   workflow_dispatch:
+    inputs:
+      token_override:
+        description: 'Optional token override (leave blank to use stored secret)'
+        required: false
+        type: string
 
 jobs:
   check:
     runs-on: ubuntu-latest
     steps:
-      - name: Check Gumroad token and list products
+      - name: Check Gumroad API
         env:
-          GUMROAD_TOKEN: ${{ secrets.GUMROAD_TOKEN }}
+          GUMROAD_TOKEN: ${{ inputs.token_override || secrets.GUMROAD_TOKEN }}
         run: |
-          echo "👑 Checking Gumroad..."
           echo "Token length: ${#GUMROAD_TOKEN} chars"
+          echo ""
 
-          HTTP_STATUS=$(curl -s -o /tmp/gumroad_resp.json -w "%{http_code}" \
+          echo "=== Method 1: Bearer header ==="
+          STATUS1=$(curl -s -o /tmp/r1.json -w "%{http_code}" \
             -H "Authorization: Bearer $GUMROAD_TOKEN" \
             https://api.gumroad.com/v2/products)
-
-          echo "HTTP status: $HTTP_STATUS"
-          echo "Response body:"
-          cat /tmp/gumroad_resp.json
-
+          echo "HTTP $STATUS1"
+          cat /tmp/r1.json
           echo ""
-          python3 -c "
+
+          echo "=== Method 2: access_token query param ==="
+          STATUS2=$(curl -s -o /tmp/r2.json -w "%{http_code}" \
+            "https://api.gumroad.com/v2/products?access_token=$GUMROAD_TOKEN")
+          echo "HTTP $STATUS2"
+          cat /tmp/r2.json
+          echo ""
+
+          if [ "$STATUS1" = "200" ]; then
+            echo "✅ Bearer method works"
+            python3 -c "
           import json, sys
-          try:
-              data = json.load(open('/tmp/gumroad_resp.json'))
-          except Exception as e:
-              print('Could not parse JSON:', e)
-              sys.exit(1)
-
-          if not data.get('success'):
-              print('FAILED:', data.get('message', 'unknown error'))
-              sys.exit(1)
-
+          data = json.load(open('/tmp/r1.json'))
           products = data.get('products', [])
-          print(f'Token valid. Products found: {len(products)}')
+          print(f'Products: {len(products)}')
           for p in products:
-              status = 'PUBLISHED' if p.get('published') else 'draft'
-              price = p.get('price', 0) / 100
-              print(f'  [{status}] {p[\"name\"]} — \${price:.2f} — {p.get(\"short_url\",\"no url\")}')
+              s = 'PUBLISHED' if p.get('published') else 'draft'
+              print(f'  [{s}] {p[\"name\"]} — \${p.get(\"price\",0)/100:.2f}')
           if not products:
-              print('  No products yet — ready to create.')
+              print('  No products yet')
           "
-
-      - name: Check recent sales
-        if: success()
-        env:
-          GUMROAD_TOKEN: ${{ secrets.GUMROAD_TOKEN }}
-        run: |
-          echo ""
-          echo "👑 Checking Gumroad sales..."
-          curl -s -H "Authorization: Bearer $GUMROAD_TOKEN" \
-            https://api.gumroad.com/v2/sales | python3 -c "
+          elif [ "$STATUS2" = "200" ]; then
+            echo "✅ Query param method works"
+            python3 -c "
           import json, sys
-          data = json.load(sys.stdin)
-          sales = data.get('sales', [])
-          total = sum(s.get('price',0) for s in sales) / 100
-          print(f'Total sales: {len(sales)} — Revenue: \${total:.2f}')
-          for s in sales[:5]:
-              print(f'  {s.get(\"created_at\",\"?\")[:10]} — {s.get(\"product_name\")} — \${s.get(\"price\",0)/100:.2f}')
+          data = json.load(open('/tmp/r2.json'))
+          products = data.get('products', [])
+          print(f'Products: {len(products)}')
+          for p in products:
+              s = 'PUBLISHED' if p.get('published') else 'draft'
+              print(f'  [{s}] {p[\"name\"]} — \${p.get(\"price\",0)/100:.2f}')
+          if not products:
+              print('  No products yet')
           "
+          else
+            echo "❌ Both methods failed — token may be invalid"
+            exit 1
+          fi
