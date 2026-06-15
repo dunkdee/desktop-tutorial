@@ -11,60 +11,53 @@ on:
 jobs:
   create:
     runs-on: ubuntu-latest
+    env:
+      GUMROAD_TOKEN: ${{ inputs.token_override || secrets.GUMROAD_TOKEN }}
+      PRODUCT_NAME: "Divine Sovereignty Blueprint: Break Free, Heal Your Mindset & Build Your Empire"
+      PRODUCT_PRICE: "4700"
     steps:
       - name: Create product on Gumroad
-        env:
-          GUMROAD_TOKEN: ${{ inputs.token_override || secrets.GUMROAD_TOKEN }}
         run: |
-          python3 << 'PYEOF'
+          python3 -c "
           import os, requests, json
 
-          token = os.environ["GUMROAD_TOKEN"]
+          token = os.environ['GUMROAD_TOKEN']
+          name  = os.environ['PRODUCT_NAME']
+          price = int(os.environ['PRODUCT_PRICE'])
 
-          name = "Divine Sovereignty Blueprint: Break Free, Heal Your Mindset & Build Your Empire"
-
-          description = """You were not created to struggle. You were created to reign.
-
-Divine Sovereignty Blueprint is the step-by-step system for breaking free from spiritual, mental, and financial limitations -- and stepping into the abundant life that was always meant for you.
-
-WHAT YOU GET INSIDE:
-
-* The 7 Pillars of Divine Sovereignty -- the exact framework for walking in your God-given authority in every area of life
-
-* Heal Your Money Story -- identify and uproot the deep wounds, beliefs, and generational patterns blocking your financial breakthrough
-
-* The Empire Builder Mindset -- how to think, move, and operate like someone who was built to win
-
-* Daily Activation Practices -- morning rituals, declarations, and alignment strategies used by kingdom builders
-
-* Your Dominion Action Plan -- a 30-day blueprint for shifting your identity, your income, and your impact
-
-WHO THIS IS FOR:
-This is for you if you are done playing small. If you know there is more inside you. If you are ready to stop surviving and start building something that lasts.
-
-Your destiny is dominion. This is where it starts."""
+          description = (
+              'You were not created to struggle. You were created to reign.\n\n'
+              'Divine Sovereignty Blueprint is the step-by-step system for breaking free '
+              'from spiritual, mental, and financial limitations and stepping into the '
+              'abundant life that was always meant for you.\n\n'
+              'WHAT YOU GET INSIDE:\n'
+              '* The 7 Pillars of Divine Sovereignty\n'
+              '* Heal Your Money Story\n'
+              '* The Empire Builder Mindset\n'
+              '* Daily Activation Practices\n'
+              '* Your 30-Day Dominion Action Plan\n\n'
+              'Your destiny is dominion. This is where it starts.'
+          )
 
           r = requests.post(
-              "https://api.gumroad.com/v2/products",
+              'https://api.gumroad.com/v2/products',
               data={
-                  "access_token": token,
-                  "name": name,
-                  "description": description,
-                  "price": 4700,
-                  "published": "false",
+                  'access_token': token,
+                  'name': name,
+                  'description': description,
+                  'price': price,
+                  'published': 'false',
               }
           )
 
-          data = r.json()
-          if data.get("success"):
-              p = data["product"]
-              print("PRODUCT CREATED")
-              print(f"  ID:       {p['id']}")
-              print(f"  Name:     {p['name']}")
-              print(f"  Price:    ${p['price']/100:.2f}")
-              print(f"  Edit URL: https://app.gumroad.com/products/{p['id']}/edit")
+          d = r.json()
+          if d.get('success'):
+              p = d['product']
+              print('PRODUCT CREATED')
+              print('  Name:  ' + p['name'])
+              print('  Price: \$' + str(p['price']/100))
+              print('  Edit:  https://app.gumroad.com/products/' + p['id'] + '/edit')
           else:
-              print("FAILED:", data.get("message", "unknown"))
-              print(json.dumps(data, indent=2))
+              print('FAILED: ' + str(d.get('message', d)))
               exit(1)
-          PYEOF
+          "
