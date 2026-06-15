@@ -39,13 +39,15 @@ jobs:
           TIKTOK_CLIENT_SECRET: ${{ secrets.TIKTOK_CLIENT_SECRET }}
           N8N_TOOL_SECRET: ${{ secrets.N8N_TOOL_SECRET }}
           ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+          GOOGLE_SERVICE_ACCOUNT_JSON: ${{ secrets.GOOGLE_SERVICE_ACCOUNT_JSON }}
+          GA4_MEASUREMENT_ID: ${{ secrets.GA4_MEASUREMENT_ID }}
           GCP_ZONE: ${{ secrets.GCP_REGION }}
         run: |
           ZONE="${GCP_ZONE:-us-central1-a}"
           INSTANCE="foundation-vm"
           PROJECT="${{ secrets.GCP_PROJECT_ID }}"
 
-          # Write .env then restart baby-api on the VM
           gcloud compute ssh "malachisingleton8@${INSTANCE}" \
             --project="${PROJECT}" \
             --zone="${ZONE}" \
@@ -67,10 +69,15 @@ jobs:
           TIKTOK_CLIENT_SECRET=${TIKTOK_CLIENT_SECRET}
           N8N_TOOL_SECRET=${N8N_TOOL_SECRET}
           ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY}
+          GEMINI_API_KEY=${GEMINI_API_KEY}
+          GOOGLE_SERVICE_ACCOUNT_JSON=${GOOGLE_SERVICE_ACCOUNT_JSON}
+          GA4_MEASUREMENT_ID=${GA4_MEASUREMENT_ID}
           ENVEOF
-              echo '👑 Starting baby-api...'
-              cd ~ && docker compose up -d baby-api --build
-              sleep 8
-              curl -sf http://localhost:8080/ && echo ' root OK'
-              curl -sf http://localhost:8080/gumroad && echo ' gumroad OK' || echo ' gumroad FAILED'
+              echo '👑 Pulling latest code...'
+              cd ~ && git -C desktop-tutorial pull origin main || true
+              echo '👑 Starting services...'
+              docker compose up -d --build
+              sleep 10
+              curl -sf http://localhost:8080/ && echo ' baby-api OK'
+              curl -sf http://localhost:80/health && echo ' web OK'
             "
