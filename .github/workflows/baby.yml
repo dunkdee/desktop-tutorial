@@ -4,6 +4,7 @@ on:
   push:
     branches:
       - main
+  workflow_dispatch:
 
 jobs:
   deploy:
@@ -11,47 +12,65 @@ jobs:
 
     steps:
       - name: Checkout code
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
 
-      - name: Deploy to VM
-        uses: appleboy/ssh-action@v0.1.10
+      - name: Authenticate to Google Cloud
+        uses: google-github-actions/auth@v2
         with:
-          host: ${{ secrets.VM_HOST }}
-          username: ${{ secrets.VM_USER }}
-          key: ${{ secrets.VM_SSH_KEY }}
-          envs: GUMROAD_TOKEN,BREVO_API_KEY,YOUTUBE_API_KEY,YOUTUBE_CLIENT_ID,YOUTUBE_CLIENT_SECRET,OANDA_API_KEY,OANDA_ACCOUNT_ID,BINANCE_API_KEY,BINANCE_API_SECRET,TIKTOK_CLIENT_ID,TIKTOK_CLIENT_SECRET,N8N_TOOL_SECRET,ANTHROPIC_API_KEY
-          script: |
-            set -e
-            echo "👑 Pulling latest code on VM..."
-            cd ~/desktop-tutorial
-            git fetch --all
-            git reset --hard origin/main
+          credentials_json: ${{ secrets.GCP_SA_KEY }}
 
-            echo "👑 Writing .env from GitHub Secrets..."
-            cat > .env <<ENV
-            GUMROAD_TOKEN=${GUMROAD_TOKEN}
-            BREVO_API_KEY=${BREVO_API_KEY}
-            YOUTUBE_API_KEY=${YOUTUBE_API_KEY}
-            YOUTUBE_CLIENT_ID=${YOUTUBE_CLIENT_ID}
-            YOUTUBE_CLIENT_SECRET=${YOUTUBE_CLIENT_SECRET}
-            OANDA_API_KEY=${OANDA_API_KEY}
-            OANDA_ACCOUNT_ID=${OANDA_ACCOUNT_ID}
-            BINANCE_API_KEY=${BINANCE_API_KEY}
-            BINANCE_API_SECRET=${BINANCE_API_SECRET}
-            TIKTOK_CLIENT_ID=${TIKTOK_CLIENT_ID}
-            TIKTOK_CLIENT_SECRET=${TIKTOK_CLIENT_SECRET}
-            N8N_TOOL_SECRET=${N8N_TOOL_SECRET}
-            ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY}
-            ENV
+      - name: Setup gcloud
+        uses: google-github-actions/setup-gcloud@v2
+        with:
+          project_id: ${{ secrets.GCP_PROJECT_ID }}
 
-            echo "👑 Restarting Docker stack..."
-            docker compose down || true
-            docker compose up -d --build
+      - name: Deploy via gcloud compute ssh
+        env:
+          GUMROAD_TOKEN: ${{ secrets.GUMROAD_TOKEN }}
+          BREVO_API_KEY: ${{ secrets.BREVO_API_KEY }}
+          YOUTUBE_API_KEY: ${{ secrets.YOUTUBE_API_KEY }}
+          YOUTUBE_CLIENT_ID: ${{ secrets.YOUTUBE_CLIENT_ID }}
+          YOUTUBE_CLIENT_SECRET: ${{ secrets.YOUTUBE_CLIENT_SECRET }}
+          OANDA_API_KEY: ${{ secrets.OANDA_API_KEY }}
+          OANDA_ACCOUNT_ID: ${{ secrets.OANDA_ACCOUNT_ID }}
+          BINANCE_API_KEY: ${{ secrets.BINANCE_API_KEY }}
+          BINANCE_API_SECRET: ${{ secrets.BINANCE_API_SECRET }}
+          TIKTOK_CLIENT_ID: ${{ secrets.TIKTOK_CLIENT_ID }}
+          TIKTOK_CLIENT_SECRET: ${{ secrets.TIKTOK_CLIENT_SECRET }}
+          N8N_TOOL_SECRET: ${{ secrets.N8N_TOOL_SECRET }}
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+          GCP_ZONE: ${{ secrets.GCP_REGION }}
+        run: |
+          ZONE="${GCP_ZONE:-us-central1-a}"
+          INSTANCE="foundation-vm"
+          PROJECT="${{ secrets.GCP_PROJECT_ID }}"
 
-            echo "👑 Testing Baby API..."
-            sleep 5
-            curl -sf http://localhost:8080/ && echo " — root OK"
-            curl -sf http://localhost:8080/gumroad && echo " — gumroad OK" || echo " — gumroad FAILED (check GUMROAD_TOKEN secret)"
-
-            echo "👑 Testing Dominion Healing site..."
-            curl -sf http://localhost/health && echo " — web OK" || true
+          # Write .env then restart baby-api on the VM
+          gcloud compute ssh "malachisingleton8@${INSTANCE}" \
+            --project="${PROJECT}" \
+            --zone="${ZONE}" \
+            --tunnel-through-iap \
+            --command="
+              set -e
+              echo '👑 Writing .env...'
+              cat > ~/.env <<'ENVEOF'
+          GUMROAD_TOKEN=${GUMROAD_TOKEN}
+          BREVO_API_KEY=${BREVO_API_KEY}
+          YOUTUBE_API_KEY=${YOUTUBE_API_KEY}
+          YOUTUBE_CLIENT_ID=${YOUTUBE_CLIENT_ID}
+          YOUTUBE_CLIENT_SECRET=${YOUTUBE_CLIENT_SECRET}
+          OANDA_API_KEY=${OANDA_API_KEY}
+          OANDA_ACCOUNT_ID=${OANDA_ACCOUNT_ID}
+          BINANCE_API_KEY=${BINANCE_API_KEY}
+          BINANCE_API_SECRET=${BINANCE_API_SECRET}
+          TIKTOK_CLIENT_ID=${TIKTOK_CLIENT_ID}
+          TIKTOK_CLIENT_SECRET=${TIKTOK_CLIENT_SECRET}
+          N8N_TOOL_SECRET=${N8N_TOOL_SECRET}
+          ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY}
+          ENVEOF
+              echo '👑 Starting baby-api...'
+              cd ~ && docker compose up -d baby-api --build
+              sleep 8
+              curl -sf http://localhost:8080/ && echo ' root OK'
+              curl -sf http://localhost:8080/gumroad && echo ' gumroad OK' || echo ' gumroad FAILED'
+            "
