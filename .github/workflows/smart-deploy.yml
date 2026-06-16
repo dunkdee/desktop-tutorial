@@ -118,7 +118,7 @@ jobs:
             echo "=============================="
             echo "  DOCKER BUILD + LAUNCH"
             echo "=============================="
-            docker compose up -d --build
+            docker compose up -d --build --force-recreate
 
             sleep 8
 
