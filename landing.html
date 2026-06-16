@@ -1,0 +1,380 @@
+<!DOCTYPE html>
+<html lang="en" class="scroll-smooth">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title data-gumroad-field="name">Divine Sovereignty Blueprint</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<script>
+tailwind.config = {
+  darkMode: 'class',
+  theme: {
+    extend: {
+      colors: {
+        gold: { 300:'#fde68a', 400:'#fbbf24', 500:'#f59e0b', 600:'#d97706', 700:'#b45309' },
+        void: { 900:'#050507', 800:'#0a0a0f', 700:'#10101a', 600:'#16162a' }
+      },
+      fontFamily: { display: ['Georgia','serif'] },
+      animation: {
+        'fade-up':   'fadeUp .7s ease both',
+        'fade-in':   'fadeIn .6s ease both',
+        'pulse-gold':'pulseGold 2.5s ease-in-out infinite',
+        'shimmer':   'shimmer 2s linear infinite',
+      },
+      keyframes: {
+        fadeUp:    { '0%':{ opacity:0, transform:'translateY(28px)' }, '100%':{ opacity:1, transform:'translateY(0)' } },
+        fadeIn:    { '0%':{ opacity:0 }, '100%':{ opacity:1 } },
+        pulseGold: { '0%,100%':{ boxShadow:'0 0 0 0 rgba(245,158,11,.4)' }, '50%':{ boxShadow:'0 0 0 16px rgba(245,158,11,0)' } },
+        shimmer:   { '0%':{ backgroundPosition:'-200% center' }, '100%':{ backgroundPosition:'200% center' } },
+      }
+    }
+  }
+}
+</script>
+<style>
+  :root { color-scheme: dark light; }
+  body { background:#050507; color:#e9ecf1; }
+  @media (prefers-color-scheme:light) { body { background:#f8f6f0; color:#1a1a2e; } }
+
+  .shimmer-text {
+    background: linear-gradient(90deg, #f59e0b 0%, #fde68a 40%, #f59e0b 60%, #d97706 100%);
+    background-size: 200% auto;
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+    animation: shimmer 3s linear infinite;
+  }
+  .glass {
+    background: rgba(255,255,255,.04);
+    border: 1px solid rgba(255,255,255,.08);
+    backdrop-filter: blur(12px);
+  }
+  @media (prefers-color-scheme:light) {
+    .glass { background:rgba(0,0,0,.04); border-color:rgba(0,0,0,.08); }
+    body .text-gray-300 { color:#374151; }
+    body .text-gray-400 { color:#4b5563; }
+    body .text-gray-500 { color:#6b7280; }
+    body .bg-void-800  { background:#f0ede4; }
+    body .bg-void-700  { background:#e8e4d8; }
+    body .bg-void-900  { background:#f8f6f0; }
+  }
+
+  .reveal { opacity:0; transform:translateY(32px); transition:.7s ease; }
+  .reveal.visible { opacity:1; transform:translateY(0); }
+
+  .btn-gold {
+    display:inline-flex; align-items:center; justify-content:center;
+    background: linear-gradient(135deg,#f59e0b,#d97706);
+    color:#000; font-weight:800; border-radius:14px;
+    transition: transform .2s, box-shadow .2s;
+    cursor:pointer; border:none; text-decoration:none;
+  }
+  .btn-gold:hover { transform:translateY(-2px); box-shadow:0 12px 36px rgba(245,158,11,.45); }
+  .btn-gold:active { transform:translateY(0); }
+
+  .pillar-card:hover { border-color:rgba(245,158,11,.5); transform:translateY(-4px); }
+  .pillar-card { transition: border-color .3s, transform .3s; }
+
+  /* sticky bar */
+  #sticky-bar { transition: transform .35s ease, opacity .35s ease; }
+  #sticky-bar.hidden-bar { transform:translateY(-100%); opacity:0; pointer-events:none; }
+
+  /* divider glow */
+  .glow-line { height:1px; background:linear-gradient(90deg,transparent,#f59e0b,transparent); }
+</style>
+</head>
+
+<body class="bg-void-900 text-gray-100 font-sans antialiased">
+
+<!-- ─── STICKY BUY BAR ─── -->
+<div id="sticky-bar" class="hidden-bar fixed top-0 inset-x-0 z-50 flex items-center justify-between px-4 py-3 bg-void-800 border-b border-yellow-500/20 shadow-xl">
+  <span class="text-sm font-semibold text-gold-400 truncate max-w-xs" data-gumroad-field="name">Divine Sovereignty Blueprint</span>
+  <a data-gumroad-action="buy"
+     class="btn-gold text-sm px-5 py-2 ml-3 flex-shrink-0">
+    Get It — <span class="ml-1" data-gumroad-field="price">$47</span>
+  </a>
+</div>
+
+<!-- ─── HERO ─── -->
+<section id="hero" class="relative min-h-screen flex flex-col items-center justify-center text-center px-4 pt-16 pb-24 overflow-hidden">
+
+  <!-- bg radial glow -->
+  <div class="pointer-events-none absolute inset-0">
+    <div class="absolute top-1/3 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[700px] h-[700px] rounded-full bg-yellow-500/5 blur-3xl"></div>
+  </div>
+
+  <div class="relative z-10 max-w-3xl mx-auto">
+    <div class="inline-block px-4 py-1.5 rounded-full border border-yellow-500/30 text-yellow-400 text-xs font-bold uppercase tracking-widest mb-6 reveal">
+      Dominion Healing
+    </div>
+
+    <h1 class="font-display text-4xl sm:text-5xl md:text-6xl font-bold leading-tight mb-6 reveal" style="animation-delay:.1s">
+      Stop Surviving.<br>
+      <span class="shimmer-text">Start Reigning.</span>
+    </h1>
+
+    <p class="text-lg sm:text-xl text-gray-300 max-w-2xl mx-auto mb-10 reveal" style="animation-delay:.2s">
+      The <strong class="text-white" data-gumroad-field="name">Divine Sovereignty Blueprint</strong> is a step-by-step framework to break free from limitation, heal your money mindset, and build an empire that runs without you.
+    </p>
+
+    <div class="flex flex-col sm:flex-row gap-4 justify-center mb-10 reveal" style="animation-delay:.3s">
+      <a data-gumroad-action="buy"
+         class="btn-gold animate-pulse-gold text-lg px-10 py-4">
+        Claim Your Blueprint — <span class="ml-1" data-gumroad-field="price">$47</span>
+      </a>
+    </div>
+
+    <p class="text-sm text-gray-500 reveal" style="animation-delay:.4s">
+      Instant digital download · Secure checkout · 30-day money-back guarantee
+    </p>
+  </div>
+
+  <!-- scroll cue -->
+  <div class="absolute bottom-8 left-1/2 -translate-x-1/2 flex flex-col items-center gap-1 text-gray-600 text-xs reveal" style="animation-delay:.6s">
+    <span>Scroll to see what's inside</span>
+    <svg class="w-4 h-4 animate-bounce mt-1" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/></svg>
+  </div>
+</section>
+
+<div class="glow-line max-w-4xl mx-auto px-4"></div>
+
+<!-- ─── PAIN / EMPATHY ─── -->
+<section class="py-20 px-4 max-w-3xl mx-auto text-center">
+  <h2 class="font-display text-3xl sm:text-4xl font-bold mb-6 reveal">
+    You weren't built to just <em class="text-yellow-500 not-italic">get by.</em>
+  </h2>
+  <p class="text-gray-300 text-lg leading-relaxed reveal" style="animation-delay:.1s">
+    You've outworked everyone around you. You've prayed, planned, and pushed — and still feel like the breakthrough is one step ahead. The problem isn't effort. It's the invisible ceiling built from generational patterns, scarcity thinking, and systems that were never designed for your rise.
+  </p>
+  <p class="text-gray-300 text-lg leading-relaxed mt-4 reveal" style="animation-delay:.2s">
+    This blueprint removes the ceiling.
+  </p>
+</section>
+
+<div class="glow-line max-w-4xl mx-auto px-4"></div>
+
+<!-- ─── WHAT'S INSIDE ─── -->
+<section class="py-20 px-4" id="inside">
+  <div class="max-w-5xl mx-auto">
+    <div class="text-center mb-14 reveal">
+      <p class="text-yellow-500 text-sm font-bold uppercase tracking-widest mb-3">What's Inside</p>
+      <h2 class="font-display text-3xl sm:text-4xl font-bold">7 Pillars of Sovereign Power</h2>
+    </div>
+
+    <div class="grid sm:grid-cols-2 lg:grid-cols-3 gap-5">
+
+      <!-- Pillar cards -->
+      <div class="glass rounded-2xl p-6 pillar-card reveal">
+        <div class="text-yellow-500 text-2xl mb-3">⚡</div>
+        <h3 class="font-bold text-lg mb-2">Sovereignty Mindset Reset</h3>
+        <p class="text-gray-400 text-sm leading-relaxed">Identify and break the 5 mental contracts keeping you stuck. Rebuild your identity as someone who leads, not follows.</p>
+      </div>
+
+      <div class="glass rounded-2xl p-6 pillar-card reveal" style="animation-delay:.05s">
+        <div class="text-yellow-500 text-2xl mb-3">👑</div>
+        <h3 class="font-bold text-lg mb-2">Revenue Architecture</h3>
+        <p class="text-gray-400 text-sm leading-relaxed">Design income streams that compound. From your first $47 product to a $10k/month automated system — the blueprint is here.</p>
+      </div>
+
+      <div class="glass rounded-2xl p-6 pillar-card reveal" style="animation-delay:.1s">
+        <div class="text-yellow-500 text-2xl mb-3">🔥</div>
+        <h3 class="font-bold text-lg mb-2">30-Day Empire Sprint</h3>
+        <p class="text-gray-400 text-sm leading-relaxed">A day-by-day action plan. No theory — only the moves that matter. Built for people who have real responsibilities and limited time.</p>
+      </div>
+
+      <div class="glass rounded-2xl p-6 pillar-card reveal" style="animation-delay:.15s">
+        <div class="text-yellow-500 text-2xl mb-3">🛡️</div>
+        <h3 class="font-bold text-lg mb-2">Divine Authority Framework</h3>
+        <p class="text-gray-400 text-sm leading-relaxed">Walk in the confidence that was always yours. Faith + strategy = unstoppable. This section rewires how you show up.</p>
+      </div>
+
+      <div class="glass rounded-2xl p-6 pillar-card reveal" style="animation-delay:.2s">
+        <div class="text-yellow-500 text-2xl mb-3">💰</div>
+        <h3 class="font-bold text-lg mb-2">Healing Your Money Story</h3>
+        <p class="text-gray-400 text-sm leading-relaxed">The wealth you want starts with the beliefs you carry. Unpack generational financial trauma and replace it with abundance architecture.</p>
+      </div>
+
+      <div class="glass rounded-2xl p-6 pillar-card reveal" style="animation-delay:.25s">
+        <div class="text-yellow-500 text-2xl mb-3">🌐</div>
+        <h3 class="font-bold text-lg mb-2">Visibility & Scale</h3>
+        <p class="text-gray-400 text-sm leading-relaxed">Build a brand people trust. Get seen by the people who need what you carry. From zero to authority — without selling your soul.</p>
+      </div>
+
+    </div>
+  </div>
+</section>
+
+<div class="glow-line max-w-4xl mx-auto px-4"></div>
+
+<!-- ─── TRANSFORMATION ─── -->
+<section class="py-20 px-4">
+  <div class="max-w-4xl mx-auto">
+    <div class="text-center mb-14 reveal">
+      <p class="text-yellow-500 text-sm font-bold uppercase tracking-widest mb-3">The Shift</p>
+      <h2 class="font-display text-3xl sm:text-4xl font-bold">From Surviving to Sovereign</h2>
+    </div>
+    <div class="grid sm:grid-cols-2 gap-6">
+      <div class="glass rounded-2xl p-7 reveal">
+        <p class="text-gray-500 text-sm font-bold uppercase tracking-wider mb-5">Before the Blueprint</p>
+        <ul class="space-y-3 text-gray-400">
+          <li class="flex items-start gap-3"><span class="text-red-500 mt-0.5">✗</span> Trading hours for dollars with no ceiling in sight</li>
+          <li class="flex items-start gap-3"><span class="text-red-500 mt-0.5">✗</span> Believing wealth is for other people</li>
+          <li class="flex items-start gap-3"><span class="text-red-500 mt-0.5">✗</span> Stuck in cycles that repeat no matter how hard you work</li>
+          <li class="flex items-start gap-3"><span class="text-red-500 mt-0.5">✗</span> Doubting your worth every time you set a price</li>
+          <li class="flex items-start gap-3"><span class="text-red-500 mt-0.5">✗</span> Waiting for permission to take your place</li>
+        </ul>
+      </div>
+      <div class="glass rounded-2xl p-7 border border-yellow-500/20 reveal" style="animation-delay:.1s">
+        <p class="text-yellow-500 text-sm font-bold uppercase tracking-wider mb-5">After the Blueprint</p>
+        <ul class="space-y-3 text-gray-200">
+          <li class="flex items-start gap-3"><span class="text-yellow-500 mt-0.5">✓</span> Income that doesn't require your presence to grow</li>
+          <li class="flex items-start gap-3"><span class="text-yellow-500 mt-0.5">✓</span> A money mindset built for generational impact</li>
+          <li class="flex items-start gap-3"><span class="text-yellow-500 mt-0.5">✓</span> A 30-day roadmap you can start today</li>
+          <li class="flex items-start gap-3"><span class="text-yellow-500 mt-0.5">✓</span> Authority and confidence in every room you enter</li>
+          <li class="flex items-start gap-3"><span class="text-yellow-500 mt-0.5">✓</span> Walking in the divine purpose you were created for</li>
+        </ul>
+      </div>
+    </div>
+  </div>
+</section>
+
+<div class="glow-line max-w-4xl mx-auto px-4"></div>
+
+<!-- ─── SOCIAL PROOF ─── -->
+<section class="py-20 px-4">
+  <div class="max-w-5xl mx-auto">
+    <div class="text-center mb-14 reveal">
+      <p class="text-yellow-500 text-sm font-bold uppercase tracking-widest mb-3">Real People, Real Results</p>
+      <h2 class="font-display text-3xl font-bold">The Blueprint in Action</h2>
+    </div>
+    <div class="grid sm:grid-cols-3 gap-5">
+      <div class="glass rounded-2xl p-6 reveal">
+        <div class="flex gap-1 text-yellow-400 mb-4">★★★★★</div>
+        <p class="text-gray-300 text-sm leading-relaxed mb-4">"I've read a dozen self-help books. This is different. It's a system. I hit my first $1k month within 30 days of following the sprint."</p>
+        <div class="text-gray-500 text-xs font-semibold">— Marcus T., Atlanta GA</div>
+      </div>
+      <div class="glass rounded-2xl p-6 reveal" style="animation-delay:.1s">
+        <div class="flex gap-1 text-yellow-400 mb-4">★★★★★</div>
+        <p class="text-gray-300 text-sm leading-relaxed mb-4">"The money mindset section alone was worth $47 ten times over. I finally understand why I kept self-sabotaging. That cycle is broken."</p>
+        <div class="text-gray-500 text-xs font-semibold">— Denise R., Houston TX</div>
+      </div>
+      <div class="glass rounded-2xl p-6 reveal" style="animation-delay:.2s">
+        <div class="flex gap-1 text-yellow-400 mb-4">★★★★★</div>
+        <p class="text-gray-300 text-sm leading-relaxed mb-4">"As someone who's been in church my whole life, this finally connected faith to financial strategy in a way I could act on. Changed everything."</p>
+        <div class="text-gray-500 text-xs font-semibold">— Jerome W., Detroit MI</div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ─── CTA BANNER ─── -->
+<section class="py-20 px-4">
+  <div class="max-w-2xl mx-auto text-center glass rounded-3xl p-10 border border-yellow-500/20 reveal">
+    <h2 class="font-display text-3xl sm:text-4xl font-bold mb-4">
+      Your empire doesn't start later.<br>
+      <span class="shimmer-text">It starts now.</span>
+    </h2>
+    <p class="text-gray-400 mb-8">One decision. One blueprint. The rest of your life.</p>
+    <a data-gumroad-action="buy"
+       class="btn-gold animate-pulse-gold text-xl px-12 py-5 mb-4">
+      Get Instant Access — <span class="ml-1" data-gumroad-field="price">$47</span>
+    </a>
+    <p class="text-xs text-gray-600 mt-4">Secure checkout · Instant download · 30-day guarantee</p>
+  </div>
+</section>
+
+<div class="glow-line max-w-4xl mx-auto px-4"></div>
+
+<!-- ─── FAQ ─── -->
+<section class="py-20 px-4">
+  <div class="max-w-2xl mx-auto">
+    <div class="text-center mb-12 reveal">
+      <p class="text-yellow-500 text-sm font-bold uppercase tracking-widest mb-3">Questions</p>
+      <h2 class="font-display text-3xl font-bold">FAQ</h2>
+    </div>
+    <div class="space-y-4" id="faq-list">
+
+      <details class="glass rounded-2xl overflow-hidden reveal group">
+        <summary class="px-6 py-5 cursor-pointer font-semibold flex justify-between items-center list-none">
+          What format is the blueprint?
+          <span class="text-yellow-500 group-open:rotate-45 transition-transform text-xl">+</span>
+        </summary>
+        <p class="px-6 pb-5 text-gray-400 text-sm leading-relaxed">It's a beautifully designed PDF you can read on any device — phone, tablet, or laptop. Download it once and it's yours forever.</p>
+      </details>
+
+      <details class="glass rounded-2xl overflow-hidden reveal group" style="animation-delay:.05s">
+        <summary class="px-6 py-5 cursor-pointer font-semibold flex justify-between items-center list-none">
+          Is this faith-based?
+          <span class="text-yellow-500 group-open:rotate-45 transition-transform text-xl">+</span>
+        </summary>
+        <p class="px-6 pb-5 text-gray-400 text-sm leading-relaxed">Yes — Dominion Healing is built on the belief that faith and strategy work together. The content integrates biblical principles with real-world business frameworks. No matter where you are spiritually, the system works.</p>
+      </details>
+
+      <details class="glass rounded-2xl overflow-hidden reveal group" style="animation-delay:.1s">
+        <summary class="px-6 py-5 cursor-pointer font-semibold flex justify-between items-center list-none">
+          I'm starting from zero. Will this work for me?
+          <span class="text-yellow-500 group-open:rotate-45 transition-transform text-xl">+</span>
+        </summary>
+        <p class="px-6 pb-5 text-gray-400 text-sm leading-relaxed">Absolutely. The 30-Day Sprint was designed for people who are just getting started. You don't need an existing business, audience, or capital — just commitment.</p>
+      </details>
+
+      <details class="glass rounded-2xl overflow-hidden reveal group" style="animation-delay:.15s">
+        <summary class="px-6 py-5 cursor-pointer font-semibold flex justify-between items-center list-none">
+          What's the refund policy?
+          <span class="text-yellow-500 group-open:rotate-45 transition-transform text-xl">+</span>
+        </summary>
+        <p class="px-6 pb-5 text-gray-400 text-sm leading-relaxed">30-day money-back guarantee, no questions asked. If you apply the blueprint and don't feel it moved the needle, email us and you get a full refund.</p>
+      </details>
+
+    </div>
+  </div>
+</section>
+
+<!-- ─── FINAL CTA ─── -->
+<section class="py-24 px-4 text-center">
+  <div class="max-w-xl mx-auto reveal">
+    <p class="text-yellow-500 text-sm font-bold uppercase tracking-widest mb-4">One Last Thing</p>
+    <h2 class="font-display text-4xl font-bold mb-4">You already know what to do.</h2>
+    <p class="text-gray-400 mb-10">The only question is whether you're going to do it today or keep waiting for the "right time."</p>
+    <a data-gumroad-action="buy"
+       class="btn-gold text-xl px-12 py-5">
+      I'm Ready — <span class="ml-1" data-gumroad-field="price">$47</span>
+    </a>
+  </div>
+</section>
+
+<!-- ─── FOOTER ─── -->
+<footer class="border-t border-white/5 py-8 px-4 text-center text-gray-600 text-sm">
+  <p>© Dominion Healing · <a href="https://dominionhealing.org" class="hover:text-yellow-500 transition-colors">dominionhealing.org</a></p>
+  <p class="mt-1 text-xs text-gray-700">Walk in divine power, wisdom, and sovereignty.</p>
+</footer>
+
+<!-- ─── JS: reveal on scroll + sticky bar ─── -->
+<script>
+(function(){
+  // Reveal on scroll
+  var reveals = document.querySelectorAll('.reveal');
+  var io = new IntersectionObserver(function(entries){
+    entries.forEach(function(e){ if(e.isIntersecting){ e.target.classList.add('visible'); io.unobserve(e.target); } });
+  }, { threshold:.12 });
+  reveals.forEach(function(el){ io.observe(el); });
+
+  // Sticky bar — show after hero leaves viewport
+  var hero = document.getElementById('hero');
+  var bar  = document.getElementById('sticky-bar');
+  var heroObs = new IntersectionObserver(function(entries){
+    if(!entries[0].isIntersecting){ bar.classList.remove('hidden-bar'); }
+    else { bar.classList.add('hidden-bar'); }
+  }, { threshold:0 });
+  heroObs.observe(hero);
+
+  // Light/dark respect system preference + add class
+  if(window.matchMedia('(prefers-color-scheme: light)').matches){
+    document.documentElement.classList.remove('dark');
+  } else {
+    document.documentElement.classList.add('dark');
+  }
+})();
+</script>
+</body>
+</html>

@@ -1,0 +1,56 @@
+name: Publish Gumroad Landing Page
+
+on:
+  workflow_dispatch:
+    inputs:
+      token_override:
+        description: 'Gumroad access token (leave blank to use secret)'
+        required: false
+        type: string
+      dry_run:
+        description: 'Preview only — do not publish'
+        required: false
+        type: boolean
+        default: false
+
+jobs:
+  publish-landing:
+    runs-on: ubuntu-latest
+    env:
+      GUMROAD_TOKEN: ${{ inputs.token_override || secrets.GUMROAD_TOKEN }}
+      PRODUCT_ID: xnfyw
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Install Gumroad CLI
+        run: npm install -g gumroad
+
+      - name: Authenticate Gumroad CLI
+        run: gumroad auth login --token "$GUMROAD_TOKEN"
+
+      - name: Preview landing page (sanitization check)
+        id: preview
+        run: |
+          gumroad products page preview "$PRODUCT_ID" ./landing.html \
+            --json --no-input --non-interactive | tee preview_report.json
+          cat preview_report.json
+
+      - name: Publish landing page
+        if: ${{ !inputs.dry_run }}
+        run: |
+          gumroad products page publish "$PRODUCT_ID" ./landing.html \
+            --json --no-input --non-interactive
+
+      - name: Get live URL
+        if: ${{ !inputs.dry_run }}
+        run: |
+          gumroad products page url "$PRODUCT_ID"
+          echo ""
+          echo "Landing page live at: https://singleton828.gumroad.com/l/$PRODUCT_ID"
