@@ -55,30 +55,42 @@ jobs:
             echo "=============================="
             docker restart ${N8N_CONTAINER}
             echo "Restarting..."
-            sleep 8
+            sleep 20
             docker ps --filter "name=${N8N_CONTAINER}" --format "{{.Names}} {{.Status}}"
 
             echo ""
             echo "=============================="
             echo "  TEST WEBHOOK"
             echo "=============================="
-            sleep 5
-            RESULT=$(curl -sf -X POST "http://localhost:5678/webhook/gumroad-sale" \
-              --data-urlencode "sale_id=TEST-001" \
-              --data-urlencode "product_name=Divine Sovereignty Blueprint" \
-              --data-urlencode "email=test@dominionhealing.org" \
-              --data-urlencode "price=4700" \
-              --data-urlencode "full_name=Test Customer" \
-              --data-urlencode "test=true" \
-              2>/dev/null || echo "WEBHOOK_NOT_RESPONDING")
-            echo "Test result: $RESULT"
+            for i in 1 2 3 4 5; do
+              RESULT=$(curl -sf -X POST "http://localhost:5678/webhook/gumroad-sale" \
+                --data-urlencode "sale_id=TEST-00${i}" \
+                --data-urlencode "product_name=Divine Sovereignty Blueprint" \
+                --data-urlencode "email=test@dominionhealing.org" \
+                --data-urlencode "price=4700" \
+                --data-urlencode "test=true" \
+                2>/dev/null || echo "")
+              if [ -n "$RESULT" ]; then
+                echo "Webhook LIVE on attempt $i: $RESULT"
+                break
+              fi
+              echo "  attempt $i: not ready yet..."
+              sleep 5
+            done
+            [ -z "$RESULT" ] && echo "WEBHOOK_NOT_RESPONDING after 5 attempts"
+
+            echo ""
+            echo "=============================="
+            echo "  N8N LOGS (last 10 lines)"
+            echo "=============================="
+            docker logs ${N8N_CONTAINER} --tail=10 2>&1
 
             echo ""
             echo "=============================="
             echo "  DONE"
             echo "=============================="
-            echo "Webhook live: https://n8n.dominionhealing.org/webhook/gumroad-sale"
+            echo "Webhook: https://n8n.dominionhealing.org/webhook/gumroad-sale"
             echo ""
-            echo "ONE STEP IN GUMROAD (UI only):"
+            echo "GUMROAD SETTING (one-time, UI only):"
             echo "  https://app.gumroad.com/settings/advanced"
             echo "  Ping URL = https://n8n.dominionhealing.org/webhook/gumroad-sale"
