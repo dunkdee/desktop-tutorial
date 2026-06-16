@@ -1,0 +1,102 @@
+name: Setup n8n Gumroad Webhook
+
+on:
+  workflow_dispatch:
+
+jobs:
+  setup:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Import and activate Gumroad workflow in n8n
+        uses: appleboy/ssh-action@v1.2.0
+        with:
+          host: ${{ secrets.VM_HOST }}
+          username: ${{ secrets.VM_USER }}
+          key: ${{ secrets.VM_SSH_KEY }}
+          command_timeout: 3m
+          script: |
+            set -e
+
+            echo "=============================="
+            echo "  GIT PULL LATEST"
+            echo "=============================="
+            cd ~/desktop-tutorial
+            git pull origin main
+            echo "Latest code pulled"
+
+            echo ""
+            echo "=============================="
+            echo "  FIND N8N"
+            echo "=============================="
+            N8N_CONTAINER=$(docker ps --filter "name=n8n" --format "{{.Names}}" 2>/dev/null | head -1)
+            [ -z "$N8N_CONTAINER" ] && N8N_CONTAINER=$(docker ps --format "{{.Names}}" 2>/dev/null | grep -i n8n | head -1)
+            echo "n8n container: ${N8N_CONTAINER:-NOT FOUND}"
+
+            echo ""
+            echo "=============================="
+            echo "  PREPARE WORKFLOW JSON"
+            echo "=============================="
+            python3 - <<'PYEOF'
+            import json
+            with open('/root/desktop-tutorial/n8n-workflows/gumroad-sale.json') as f:
+                w = json.load(f)
+            w['active'] = True
+            with open('/tmp/gumroad-sale-active.json', 'w') as f:
+                json.dump(w, f)
+            print('Workflow JSON written to /tmp/gumroad-sale-active.json')
+            PYEOF
+
+            echo ""
+            echo "=============================="
+            echo "  IMPORT INTO N8N"
+            echo "=============================="
+            if [ -n "$N8N_CONTAINER" ]; then
+              docker cp /tmp/gumroad-sale-active.json ${N8N_CONTAINER}:/tmp/gumroad-sale.json
+              docker exec ${N8N_CONTAINER} n8n import:workflow --input=/tmp/gumroad-sale.json 2>&1
+              echo "Imported via Docker exec"
+            else
+              echo "No Docker container found — trying n8n API (unauthenticated)"
+              STATUS=$(curl -s -o /dev/null -w "%{http_code}" http://localhost:5678/api/v1/workflows 2>/dev/null || echo "000")
+              if [ "$STATUS" = "200" ]; then
+                curl -sf -X POST http://localhost:5678/api/v1/workflows \
+                  -H "Content-Type: application/json" \
+                  -d @/tmp/gumroad-sale-active.json | python3 -m json.tool
+                echo "Imported via API"
+              else
+                echo "API returned $STATUS, trying with N8N_API_KEY..."
+                curl -sf -X POST http://localhost:5678/api/v1/workflows \
+                  -H "X-N8N-API-KEY: ${{ secrets.N8N_API_KEY }}" \
+                  -H "Content-Type: application/json" \
+                  -d @/tmp/gumroad-sale-active.json | python3 -m json.tool
+                echo "Imported via API with key"
+              fi
+            fi
+
+            echo ""
+            echo "=============================="
+            echo "  TEST WEBHOOK"
+            echo "=============================="
+            sleep 3
+            RESULT=$(curl -sf -X POST "http://localhost:5678/webhook/gumroad-sale" \
+              --data-urlencode "sale_id=TEST-001" \
+              --data-urlencode "product_name=Divine Sovereignty Blueprint" \
+              --data-urlencode "email=test@dominionhealing.org" \
+              --data-urlencode "price=4700" \
+              --data-urlencode "full_name=Test Customer" \
+              --data-urlencode "test=true" \
+              2>/dev/null || echo "WEBHOOK_NOT_RESPONDING")
+            echo "Webhook test: $RESULT"
+
+            echo ""
+            echo "=============================="
+            echo "  SUMMARY"
+            echo "=============================="
+            echo "n8n webhook URL:"
+            echo "  https://n8n.dominionhealing.org/webhook/gumroad-sale"
+            echo ""
+            echo "baby-api ping endpoint:"
+            echo "  https://hub.dominionhealing.org/gumroad/ping"
+            echo ""
+            echo "ACTION NEEDED in Gumroad:"
+            echo "  Settings -> Advanced -> Ping URL"
+            echo "  Paste: https://n8n.dominionhealing.org/webhook/gumroad-sale"
