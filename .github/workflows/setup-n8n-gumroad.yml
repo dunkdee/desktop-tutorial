@@ -36,15 +36,18 @@ jobs:
             echo "=============================="
             echo "  PREPARE WORKFLOW JSON"
             echo "=============================="
+            cd ~/desktop-tutorial
             python3 - <<'PYEOF'
-            import json
-            with open('/root/desktop-tutorial/n8n-workflows/gumroad-sale.json') as f:
-                w = json.load(f)
-            w['active'] = True
-            with open('/tmp/gumroad-sale-active.json', 'w') as f:
-                json.dump(w, f)
-            print('Workflow JSON written to /tmp/gumroad-sale-active.json')
-            PYEOF
+import json, os
+repo = os.path.expanduser('~/desktop-tutorial')
+wf_path = os.path.join(repo, 'n8n-workflows/gumroad-sale.json')
+with open(wf_path) as f:
+    w = json.load(f)
+w['active'] = True
+with open('/tmp/gumroad-sale-active.json', 'w') as f:
+    json.dump(w, f)
+print('Written to /tmp/gumroad-sale-active.json')
+PYEOF
 
             echo ""
             echo "=============================="
@@ -55,20 +58,19 @@ jobs:
               docker exec ${N8N_CONTAINER} n8n import:workflow --input=/tmp/gumroad-sale.json 2>&1
               echo "Imported via Docker exec"
             else
-              echo "No Docker container found — trying n8n API (unauthenticated)"
-              STATUS=$(curl -s -o /dev/null -w "%{http_code}" http://localhost:5678/api/v1/workflows 2>/dev/null || echo "000")
-              if [ "$STATUS" = "200" ]; then
+              echo "No Docker n8n found, trying API..."
+              HTTP_STATUS=$(curl -s -o /dev/null -w "%{http_code}" http://localhost:5678/api/v1/workflows 2>/dev/null || echo "000")
+              if [ "$HTTP_STATUS" = "200" ]; then
                 curl -sf -X POST http://localhost:5678/api/v1/workflows \
                   -H "Content-Type: application/json" \
                   -d @/tmp/gumroad-sale-active.json | python3 -m json.tool
-                echo "Imported via API"
+                echo "Imported via unauthenticated API"
               else
-                echo "API returned $STATUS, trying with N8N_API_KEY..."
                 curl -sf -X POST http://localhost:5678/api/v1/workflows \
                   -H "X-N8N-API-KEY: ${{ secrets.N8N_API_KEY }}" \
                   -H "Content-Type: application/json" \
                   -d @/tmp/gumroad-sale-active.json | python3 -m json.tool
-                echo "Imported via API with key"
+                echo "Imported via API key"
               fi
             fi
 
@@ -85,18 +87,15 @@ jobs:
               --data-urlencode "full_name=Test Customer" \
               --data-urlencode "test=true" \
               2>/dev/null || echo "WEBHOOK_NOT_RESPONDING")
-            echo "Webhook test: $RESULT"
+            echo "Webhook test result: $RESULT"
 
             echo ""
             echo "=============================="
-            echo "  SUMMARY"
+            echo "  DONE"
             echo "=============================="
-            echo "n8n webhook URL:"
-            echo "  https://n8n.dominionhealing.org/webhook/gumroad-sale"
+            echo "n8n webhook: https://n8n.dominionhealing.org/webhook/gumroad-sale"
+            echo "baby-api endpoint: https://hub.dominionhealing.org/gumroad/ping"
             echo ""
-            echo "baby-api ping endpoint:"
-            echo "  https://hub.dominionhealing.org/gumroad/ping"
-            echo ""
-            echo "ACTION NEEDED in Gumroad:"
-            echo "  Settings -> Advanced -> Ping URL"
-            echo "  Paste: https://n8n.dominionhealing.org/webhook/gumroad-sale"
+            echo "FINAL STEP (Gumroad UI only):"
+            echo "  app.gumroad.com/settings/advanced"
+            echo "  Ping URL -> https://n8n.dominionhealing.org/webhook/gumroad-sale"
