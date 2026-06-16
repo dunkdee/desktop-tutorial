@@ -1,0 +1,71 @@
+name: Fix n8n Bridge IP + Vault Write Test
+
+on:
+  workflow_dispatch:
+
+jobs:
+  fix:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Fix n8n URL and test vault write
+        uses: appleboy/ssh-action@v1.2.0
+        with:
+          host: ${{ secrets.VM_HOST }}
+          username: ${{ secrets.VM_USER }}
+          key: ${{ secrets.VM_SSH_KEY }}
+          command_timeout: 3m
+          script: |
+            echo "============================="
+            echo "  VAULT WRITE TEST (direct exec)"
+            echo "============================="
+            docker exec baby-api sh -c 'cd /app && python3 - <<PYEOF
+import os, sys
+os.environ.setdefault("VAULT_PATH", "/vault")
+try:
+    from vault_io import create_note
+    p = create_note("deals","Direct Container Test","## Test\n- wrote from exec","container","test",["test"],{"direct": True})
+    print("VAULT WRITE OK:", p)
+except Exception as e:
+    print("VAULT WRITE FAIL:", repr(e))
+PYEOF'
+
+            echo ""
+            echo "============================="
+            echo "  VAULT AFTER EXEC TEST"
+            echo "============================="
+            VAULT=$(grep '^VAULT_PATH=' ~/desktop-tutorial/.env 2>/dev/null | cut -d= -f2 | tr -d '"' | tr -d "'")
+            VAULT=${VAULT:-/home/malachisingleton8/vault}
+            ls -lt "${VAULT}/20-deals" 2>/dev/null | head -10
+            LATEST=$(ls -t "${VAULT}/20-deals" 2>/dev/null | head -1)
+            [ -n "$LATEST" ] && cat "${VAULT}/20-deals/${LATEST}" || echo "still empty"
+
+            echo ""
+            echo "============================="
+            echo "  UPDATE N8N WORKFLOW (172.17.0.1 = n8n bridge gateway)"
+            echo "============================="
+            cat > /tmp/gw2.json << 'ENDJSON'
+{"id":"f47ac10b-58cc-4372-a567-0e02b2c3d479","name":"Gumroad Sale Handler","nodes":[{"parameters":{"httpMethod":"POST","path":"gumroad-sale","responseMode":"onReceived","responseCode":"200","options":{}},"id":"a1b2c3d4-0001-0001-0001-000000000001","name":"Gumroad Ping","type":"n8n-nodes-base.webhook","typeVersion":2,"position":[240,300],"webhookId":"gumroad-sale"},{"parameters":{"method":"POST","url":"http://172.17.0.1:8080/gumroad/ping","sendBody":true,"contentType":"json","specifyBody":"json","jsonBody":"={{ JSON.stringify($json) }}","options":{}},"id":"a1b2c3d4-0001-0001-0001-000000000002","name":"Log Sale to Vault","type":"n8n-nodes-base.httpRequest","typeVersion":4.2,"position":[460,300]}],"connections":{"Gumroad Ping":{"main":[[{"node":"Log Sale to Vault","type":"main","index":0}]]}},"active":true,"settings":{"executionOrder":"v1"}}
+ENDJSON
+            docker cp /tmp/gw2.json dominion-n8n:/tmp/gw2.json
+            docker exec dominion-n8n n8n import:workflow --input=/tmp/gw2.json
+            docker exec dominion-n8n n8n publish:workflow --id="f47ac10b-58cc-4372-a567-0e02b2c3d479"
+            docker restart dominion-n8n
+            sleep 20
+
+            echo ""
+            echo "============================="
+            echo "  E2E TEST VIA N8N"
+            echo "============================="
+            curl -sf -X POST https://n8n.dominionhealing.org/webhook/gumroad-sale \
+              -H 'Content-Type: application/json' \
+              -d '{"sale_id":"e2e-bridge","product_name":"Divine Sovereignty Blueprint","email":"bridge@test.com","price":4700,"full_name":"Bridge Test","test":"true"}' \
+              2>/dev/null && echo " -> n8n OK" || echo "n8n FAILED"
+            sleep 5
+
+            echo ""
+            echo "============================="
+            echo "  VAULT FINAL CHECK"
+            echo "============================="
+            ls -lt "${VAULT}/20-deals" 2>/dev/null | head -10
+            LATEST=$(ls -t "${VAULT}/20-deals" 2>/dev/null | head -1)
+            [ -n "$LATEST" ] && echo "SUCCESS: $LATEST" || echo "STILL EMPTY"
