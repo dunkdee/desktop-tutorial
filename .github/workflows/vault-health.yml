@@ -1,0 +1,26 @@
+name: Vault Health Check
+
+on:
+  schedule:
+    - cron: '0 6 * * *'   # daily at 6am UTC
+  workflow_dispatch:
+
+jobs:
+  doctor:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Run vault doctor on VM
+        uses: appleboy/ssh-action@v1.2.0
+        with:
+          host: ${{ secrets.VM_HOST }}
+          username: ${{ secrets.VM_USER }}
+          key: ${{ secrets.VM_SSH_KEY }}
+          script: |
+            set -e
+            cd ~/desktop-tutorial
+
+            # Install deps if needed
+            pip3 install --quiet python-frontmatter 2>/dev/null || \
+              pip install --quiet python-frontmatter 2>/dev/null || true
+
+            python3 apps/vault/doctor.py && echo "✅ Vault healthy" || echo "⚠️ Vault has issues — check _health/ folder"

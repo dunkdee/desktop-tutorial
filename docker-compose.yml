@@ -7,7 +7,8 @@ services:
     working_dir: /app
     volumes:
       - ./api:/app
-    command: ["sh", "-c", "pip install --no-cache-dir flask requests google-genai && python app.py"]
+      - ${VAULT_PATH:-/home/malachisingleton8/vault}:/vault
+    command: ["sh", "-c", "pip install --no-cache-dir flask requests google-genai python-frontmatter && python app.py"]
     ports:
       - "8080:8080"
     restart: always
@@ -26,6 +27,7 @@ services:
       GEMINI_API_KEY: ${GEMINI_API_KEY}
       GOOGLE_SERVICE_ACCOUNT_JSON: ${GOOGLE_SERVICE_ACCOUNT_JSON}
       GA4_MEASUREMENT_ID: ${GA4_MEASUREMENT_ID:-G-XXXXXXXXXX}
+      VAULT_PATH: /vault
     healthcheck:
       test: ["CMD-SHELL", "python -c 'import urllib.request; urllib.request.urlopen(\"http://localhost:8080/\").read(); print(\"OK\")' || exit 1"]
       interval: 20s

@@ -41,6 +41,12 @@ jobs:
             printf 'GOOGLE_SERVICE_ACCOUNT_JSON=%s\n'  '${{ secrets.GOOGLE_SERVICE_ACCOUNT_JSON }}'  >> .env
             printf 'GA4_MEASUREMENT_ID=%s\n'           '${{ secrets.GA4_MEASUREMENT_ID }}'           >> .env
 
+            # Set up vault directory structure if not exists
+            VAULT_DIR="${HOME}/vault"
+            mkdir -p "${VAULT_DIR}/00-inbox" "${VAULT_DIR}/10-research" "${VAULT_DIR}/20-deals" \
+              "${VAULT_DIR}/30-surplus-cases" "${VAULT_DIR}/40-manual" \
+              "${VAULT_DIR}/90-meta/templates" "${VAULT_DIR}/_attachments" "${VAULT_DIR}/_health"
+
             git pull origin main
             docker compose up -d --build
             sleep 10

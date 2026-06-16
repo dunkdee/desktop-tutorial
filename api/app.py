@@ -1,5 +1,5 @@
-from flask import Flask, jsonify
-import os, requests
+from flask import Flask, jsonify, request
+import glob, os, requests
 
 app = Flask(__name__)
 
@@ -133,6 +133,49 @@ def oanda():
 def binance():
     r = requests.get("https://api.binance.us/api/v3/time", timeout=20)
     return (r.json(), r.status_code)
+
+@app.route("/vault/inbox", methods=["POST"])
+def vault_inbox():
+    try:
+        from vault_io import create_note
+    except ImportError:
+        return jsonify(error="vault_io not available — VAULT_PATH not mounted"), 503
+    data = request.get_json(force=True, silent=True) or {}
+    if not data.get("content"):
+        return jsonify(error="content is required"), 400
+    path = create_note(
+        lane="inbox",
+        title=data.get("title", "Untitled"),
+        content=data.get("content", ""),
+        agent=data.get("agent", "baby-api"),
+        note_type=data.get("type", "inbox"),
+        tags=data.get("tags", []),
+        extra_meta=data.get("meta"),
+    )
+    return jsonify({"status": "created", "path": path}), 201
+
+@app.route("/vault/inbox", methods=["GET"])
+def vault_inbox_list():
+    try:
+        from vault_io import list_lane
+    except ImportError:
+        return jsonify(error="vault_io not available"), 503
+    status_filter = request.args.get("status")
+    notes = list_lane("inbox", status_filter=status_filter)
+    return jsonify({"count": len(notes), "notes": notes})
+
+@app.route("/vault/health")
+def vault_health():
+    vault_path = os.getenv("VAULT_PATH", "/vault")
+    if not os.path.isdir(vault_path):
+        return jsonify({"vault": "not mounted", "path": vault_path}), 503
+    notes = glob.glob(os.path.join(vault_path, "**/*.md"), recursive=True)
+    lanes = {}
+    for d in os.listdir(vault_path):
+        full = os.path.join(vault_path, d)
+        if os.path.isdir(full):
+            lanes[d] = len([f for f in os.listdir(full) if f.endswith(".md")])
+    return jsonify({"vault": "mounted", "path": vault_path, "total_notes": len(notes), "lanes": lanes})
 
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=8080)
