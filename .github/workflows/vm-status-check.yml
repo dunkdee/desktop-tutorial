@@ -1,0 +1,110 @@
+name: VM Status Check — Trading Bot + System State
+
+on:
+  workflow_dispatch:
+
+jobs:
+  status:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Scan VM for trading bot and system state
+        uses: appleboy/ssh-action@v1.2.0
+        with:
+          host: ${{ secrets.VM_HOST }}
+          username: ${{ secrets.VM_USER }}
+          key: ${{ secrets.VM_SSH_KEY }}
+          script: |
+            echo "=============================="
+            echo "  OANDA FILES (excluding venv)"
+            echo "=============================="
+            grep -rl "oanda\|OANDA\|v20\|tpqoa\|oandapyV20" ~ \
+              --include="*.py" \
+              --exclude-dir="site-packages" \
+              --exclude-dir="lib" \
+              --exclude-dir=".git" \
+              --exclude-dir="__pycache__" 2>/dev/null | sort
+
+            echo ""
+            echo "=============================="
+            echo "  BINANCE FILES (excluding venv)"
+            echo "=============================="
+            grep -rl "binance\|BINANCE\|BinanceClient\|ccxt" ~ \
+              --include="*.py" \
+              --exclude-dir="site-packages" \
+              --exclude-dir="lib" \
+              --exclude-dir=".git" \
+              --exclude-dir="__pycache__" 2>/dev/null | sort
+
+            echo ""
+            echo "=============================="
+            echo "  ALL APP-LEVEL .PY IN ~/dominion"
+            echo "=============================="
+            find ~/dominion -name "*.py" \
+              -not -path "*/site-packages/*" \
+              -not -path "*/lib/python*" \
+              -not -path "*/__pycache__/*" 2>/dev/null | sort
+
+            echo ""
+            echo "=============================="
+            echo "  ~/dominion TREE (dirs only)"
+            echo "=============================="
+            find ~/dominion -maxdepth 3 -type d \
+              -not -path "*/site-packages/*" \
+              -not -path "*/lib/python*" \
+              -not -path "*/__pycache__/*" 2>/dev/null | sort
+
+            echo ""
+            echo "=============================="
+            echo "  ~/dominion/site/app.py"
+            echo "=============================="
+            cat ~/dominion/site/app.py 2>/dev/null || echo "NOT FOUND"
+
+            echo ""
+            echo "=============================="
+            echo "  ~/dominion/site/bridge.py"
+            echo "=============================="
+            cat ~/dominion/site/bridge.py 2>/dev/null || echo "NOT FOUND"
+
+            echo ""
+            echo "=============================="
+            echo "  TRADING-NAMED FILES/DIRS"
+            echo "=============================="
+            find ~ -maxdepth 5 \
+              \( -name "*trade*" -o -name "*trader*" -o -name "*trading*" \
+                 -o -name "*bot*" -o -name "*forex*" -o -name "*oanda*" \
+                 -o -name "*binance*" \) \
+              -not -path "*/site-packages/*" \
+              -not -path "*/lib/python*" \
+              -not -path "*/__pycache__/*" \
+              -not -path "*/.git/*" 2>/dev/null | sort
+
+            echo ""
+            echo "=============================="
+            echo "  RUNNING PYTHON PROCESSES"
+            echo "=============================="
+            ps aux | grep -E "python|uvicorn|gunicorn" | grep -v grep || echo "none"
+
+            echo ""
+            echo "=============================="
+            echo "  SYSTEMD — TRADING SERVICES"
+            echo "=============================="
+            systemctl list-units --type=service --state=running 2>/dev/null \
+              | grep -iE "trade|oanda|binance|bot|forex|crypto|market" || echo "none"
+
+            echo ""
+            echo "=============================="
+            echo "  ALL RUNNING SYSTEMD SERVICES"
+            echo "=============================="
+            systemctl list-units --type=service --state=running 2>/dev/null | head -60
+
+            echo ""
+            echo "=============================="
+            echo "  BABY-API STATUS"
+            echo "=============================="
+            curl -sf http://localhost:8080/ 2>/dev/null && echo "" || echo "baby-api NOT responding"
+
+            echo ""
+            echo "=============================="
+            echo "  DOMINION-WEB STATUS"
+            echo "=============================="
+            curl -sf http://localhost:8090/ 2>/dev/null | head -5 || echo "dominion-web NOT responding"
