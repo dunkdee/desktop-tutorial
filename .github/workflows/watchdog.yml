@@ -1,0 +1,63 @@
+name: Empire Watchdog — Auto-Restart Down Containers
+
+on:
+  schedule:
+    - cron: "*/15 * * * *"
+  workflow_dispatch:
+
+jobs:
+  watchdog:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check containers and restart any that are down
+        uses: appleboy/ssh-action@v1.2.0
+        with:
+          host: ${{ secrets.VM_HOST }}
+          username: ${{ secrets.VM_USER }}
+          key: ${{ secrets.VM_SSH_KEY }}
+          command_timeout: 3m
+          script: |
+            cd ~/desktop-tutorial
+            RESTART_NEEDED=0
+
+            # Check baby-api
+            if curl -sf http://localhost:8080/ 2>/dev/null | grep -q "LIVE"; then
+              echo "baby-api UP"
+            else
+              echo "baby-api DOWN - flagging for restart"
+              RESTART_NEEDED=1
+            fi
+
+            # Check dominion-web
+            if curl -sf http://localhost:8090/ > /dev/null 2>/dev/null; then
+              echo "dominion-web UP"
+            else
+              echo "dominion-web DOWN - flagging for restart"
+              RESTART_NEEDED=1
+            fi
+
+            if [ "$RESTART_NEEDED" = "1" ]; then
+              echo "Starting down containers via docker compose up -d"
+              docker compose up -d 2>/dev/null
+              sleep 15
+
+              echo ""
+              echo "=== POST-RESTART STATUS ==="
+              if curl -sf http://localhost:8080/ | grep -q "LIVE" 2>/dev/null; then
+                echo "baby-api RECOVERED"
+                curl -sf http://localhost:8080/ | python3 -m json.tool 2>/dev/null || true
+              else
+                echo "baby-api STILL DOWN - running full rebuild"
+                docker compose up -d --build 2>/dev/null
+              fi
+
+              if curl -sf http://localhost:8090/ > /dev/null 2>/dev/null; then
+                echo "dominion-web RECOVERED"
+              else
+                echo "dominion-web STILL DOWN"
+              fi
+            fi
+
+            echo ""
+            echo "=== CONTAINER STATUS ==="
+            docker ps --format "{{.Names}}: {{.Status}}" | sort
