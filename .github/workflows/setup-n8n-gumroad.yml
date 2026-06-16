@@ -15,50 +15,38 @@ jobs:
           key: ${{ secrets.VM_SSH_KEY }}
           command_timeout: 3m
           script: |
-            set -e
-
-            echo "=============================="
-            echo "  GIT PULL LATEST"
-            echo "=============================="
             cd ~/desktop-tutorial
             git pull origin main
 
-            echo ""
             echo "=============================="
-            echo "  FIND N8N"
+            echo "  FIND N8N CONTAINER"
             echo "=============================="
             N8N_CONTAINER=$(docker ps --filter "name=n8n" --format "{{.Names}}" 2>/dev/null | head -1)
             [ -z "$N8N_CONTAINER" ] && N8N_CONTAINER=$(docker ps --format "{{.Names}}" 2>/dev/null | grep -i n8n | head -1)
             echo "n8n container: ${N8N_CONTAINER:-NOT FOUND}"
+            [ -z "$N8N_CONTAINER" ] && { echo "Cannot find n8n container"; exit 1; }
 
             echo ""
             echo "=============================="
-            echo "  PREPARE WORKFLOW JSON"
+            echo "  WRITE WORKFLOW JSON"
             echo "=============================="
-            python3 -c 'import json,os; repo=os.path.expanduser("~/desktop-tutorial"); wf=json.load(open(os.path.join(repo,"n8n-workflows/gumroad-sale.json"))); wf["active"]=True; open("/tmp/gumroad-sale-active.json","w").write(json.dumps(wf)); print("JSON ready")'
+            python3 -c 'import json,os; r=os.path.expanduser("~/desktop-tutorial"); w=json.load(open(os.path.join(r,"n8n-workflows/gumroad-sale.json"))); w["active"]=True; open("/tmp/gw.json","w").write(json.dumps(w)); print("JSON written")'
+            WF_ID=$(python3 -c 'import json; print(json.load(open("/tmp/gw.json"))["id"])')
+            echo "Workflow ID: $WF_ID"
 
             echo ""
             echo "=============================="
-            echo "  IMPORT INTO N8N"
+            echo "  IMPORT WORKFLOW"
             echo "=============================="
-            if [ -n "$N8N_CONTAINER" ]; then
-              docker cp /tmp/gumroad-sale-active.json ${N8N_CONTAINER}:/tmp/gumroad-sale.json
-              docker exec ${N8N_CONTAINER} n8n import:workflow --input=/tmp/gumroad-sale.json 2>&1
-              echo "Imported via Docker exec"
-            else
-              echo "No Docker n8n found, trying API..."
-              HTTP_STATUS=$(curl -s -o /dev/null -w "%{http_code}" http://localhost:5678/api/v1/workflows 2>/dev/null || echo "000")
-              if [ "$HTTP_STATUS" = "200" ]; then
-                curl -sf -X POST http://localhost:5678/api/v1/workflows \
-                  -H "Content-Type: application/json" \
-                  -d @/tmp/gumroad-sale-active.json | python3 -m json.tool
-              else
-                curl -sf -X POST http://localhost:5678/api/v1/workflows \
-                  -H "X-N8N-API-KEY: ${{ secrets.N8N_API_KEY }}" \
-                  -H "Content-Type: application/json" \
-                  -d @/tmp/gumroad-sale-active.json | python3 -m json.tool
-              fi
-            fi
+            docker cp /tmp/gw.json ${N8N_CONTAINER}:/tmp/gw.json
+            docker exec ${N8N_CONTAINER} n8n import:workflow --input=/tmp/gw.json 2>&1 || true
+
+            echo ""
+            echo "=============================="
+            echo "  ACTIVATE WORKFLOW"
+            echo "=============================="
+            docker exec ${N8N_CONTAINER} n8n update:workflow --id="${WF_ID}" --active=true 2>&1
+            echo "Activation done"
 
             echo ""
             echo "=============================="
@@ -79,8 +67,8 @@ jobs:
             echo "=============================="
             echo "  DONE"
             echo "=============================="
-            echo "n8n webhook live at:"
-            echo "  https://n8n.dominionhealing.org/webhook/gumroad-sale"
+            echo "Webhook live: https://n8n.dominionhealing.org/webhook/gumroad-sale"
             echo ""
-            echo "Gumroad: app.gumroad.com/settings/advanced"
+            echo "ONE STEP IN GUMROAD:"
+            echo "  https://app.gumroad.com/settings/advanced"
             echo "  Ping URL = https://n8n.dominionhealing.org/webhook/gumroad-sale"
