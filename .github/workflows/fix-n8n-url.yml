@@ -1,0 +1,118 @@
+name: Fix n8n URL + Vault Check
+
+on:
+  workflow_dispatch:
+
+jobs:
+  fix:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Fix n8n gateway URL and verify vault
+        uses: appleboy/ssh-action@v1.2.0
+        with:
+          host: ${{ secrets.VM_HOST }}
+          username: ${{ secrets.VM_USER }}
+          key: ${{ secrets.VM_SSH_KEY }}
+          command_timeout: 3m
+          script: |
+            echo "============================="
+            echo "  VAULT HEALTH (from baby-api)"
+            echo "============================="
+            curl -sf http://localhost:8080/vault/health 2>/dev/null | python3 -m json.tool || echo "NOT RESPONDING"
+
+            echo ""
+            echo "============================="
+            echo "  FIND DOCKER GATEWAY IP"
+            echo "============================="
+            GW=$(docker inspect baby-api 2>/dev/null | python3 -c "import json,sys; d=json.load(sys.stdin); nets=d[0]['NetworkSettings']['Networks']; print(list(nets.values())[0]['Gateway'])" 2>/dev/null || echo "172.17.0.1")
+            echo "Gateway: $GW"
+
+            echo ""
+            echo "============================="
+            echo "  WRITE FIXED N8N WORKFLOW"
+            echo "============================="
+            cat > /tmp/gw_fixed.json << ENDJSON
+            {
+              "id": "f47ac10b-58cc-4372-a567-0e02b2c3d479",
+              "name": "Gumroad Sale Handler",
+              "nodes": [
+                {
+                  "parameters": {
+                    "httpMethod": "POST",
+                    "path": "gumroad-sale",
+                    "responseMode": "onReceived",
+                    "responseCode": "200",
+                    "options": {}
+                  },
+                  "id": "a1b2c3d4-0001-0001-0001-000000000001",
+                  "name": "Gumroad Ping",
+                  "type": "n8n-nodes-base.webhook",
+                  "typeVersion": 2,
+                  "position": [240, 300],
+                  "webhookId": "gumroad-sale"
+                },
+                {
+                  "parameters": {
+                    "method": "POST",
+                    "url": "GATEWAY_PLACEHOLDER",
+                    "sendBody": true,
+                    "contentType": "json",
+                    "specifyBody": "json",
+                    "jsonBody": "={{ JSON.stringify($json) }}",
+                    "options": {}
+                  },
+                  "id": "a1b2c3d4-0001-0001-0001-000000000002",
+                  "name": "Log Sale to Vault",
+                  "type": "n8n-nodes-base.httpRequest",
+                  "typeVersion": 4.2,
+                  "position": [460, 300]
+                }
+              ],
+              "connections": {
+                "Gumroad Ping": {
+                  "main": [[{"node": "Log Sale to Vault", "type": "main", "index": 0}]]
+                }
+              },
+              "active": true,
+              "settings": {"executionOrder": "v1"}
+            }
+            ENDJSON
+            sed -i "s|GATEWAY_PLACEHOLDER|http://${GW}:8080/gumroad/ping|g" /tmp/gw_fixed.json
+            echo "URL in workflow:"
+            grep -o 'http://[^"]*' /tmp/gw_fixed.json | head -1
+
+            echo ""
+            echo "============================="
+            echo "  IMPORT + ACTIVATE IN N8N"
+            echo "============================="
+            docker cp /tmp/gw_fixed.json dominion-n8n:/tmp/gw_fixed.json
+            docker exec dominion-n8n n8n import:workflow --input=/tmp/gw_fixed.json
+            docker exec dominion-n8n n8n publish:workflow --id="f47ac10b-58cc-4372-a567-0e02b2c3d479"
+            docker restart dominion-n8n
+            sleep 20
+
+            echo ""
+            echo "============================="
+            echo "  E2E TEST: n8n -> baby-api -> vault"
+            echo "============================="
+            curl -sf -X POST https://n8n.dominionhealing.org/webhook/gumroad-sale \
+              -H 'Content-Type: application/json' \
+              -d '{"sale_id":"e2e-final","product_name":"Divine Sovereignty Blueprint","email":"final@test.com","price":4700,"full_name":"Final Test","test":"true"}' \
+              2>/dev/null && echo " -> n8n OK" || echo "n8n webhook FAILED"
+            sleep 5
+
+            echo ""
+            echo "============================="
+            echo "  VAULT 20-DEALS CHECK"
+            echo "============================="
+            VAULT=$(grep '^VAULT_PATH=' ~/desktop-tutorial/.env 2>/dev/null | cut -d= -f2 | tr -d '"' | tr -d "'")
+            VAULT=${VAULT:-/home/malachisingleton8/vault}
+            ls -lt "${VAULT}/20-deals" 2>/dev/null | head -10
+            LATEST=$(ls -t "${VAULT}/20-deals" 2>/dev/null | head -1)
+            if [ -n "$LATEST" ]; then
+              echo "SUCCESS - found: $LATEST"
+              cat "${VAULT}/20-deals/${LATEST}"
+            else
+              echo "STILL EMPTY - checking baby-api logs:"
+              docker logs baby-api --tail=20 2>/dev/null
+            fi
