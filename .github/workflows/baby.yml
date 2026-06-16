@@ -36,8 +36,10 @@ jobs:
             printf 'TIKTOK_CLIENT_ID=%s\n'       '${{ secrets.TIKTOK_CLIENT_ID }}'      >> .env
             printf 'TIKTOK_CLIENT_SECRET=%s\n'   '${{ secrets.TIKTOK_CLIENT_SECRET }}'  >> .env
             printf 'ANTHROPIC_API_KEY=%s\n'      '${{ secrets.ANTHROPIC_API_KEY }}'     >> .env
-            printf 'GEMINI_API_KEY=%s\n'         '${{ secrets.GEMINI_API_KEY }}'        >> .env
-            printf 'GA4_MEASUREMENT_ID=%s\n'     '${{ secrets.GA4_MEASUREMENT_ID }}'    >> .env
+            printf 'GCP_PROJECT_ID=%s\n'                '${{ secrets.GCP_PROJECT_ID }}'                >> .env
+            printf 'GCP_REGION=%s\n'                   '${{ secrets.GCP_REGION }}'                   >> .env
+            printf 'GOOGLE_SERVICE_ACCOUNT_JSON=%s\n'  '${{ secrets.GOOGLE_SERVICE_ACCOUNT_JSON }}'  >> .env
+            printf 'GA4_MEASUREMENT_ID=%s\n'           '${{ secrets.GA4_MEASUREMENT_ID }}'           >> .env
 
             git pull origin main
             docker compose up -d --build
