@@ -1,0 +1,130 @@
+name: Smart Deploy — Read VM Env, Build, Launch
+
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Deploy — merge VM env then rebuild
+        uses: appleboy/ssh-action@v1.2.0
+        with:
+          host: ${{ secrets.VM_HOST }}
+          username: ${{ secrets.VM_USER }}
+          key: ${{ secrets.VM_SSH_KEY }}
+          script: |
+            set -e
+            cd ~/desktop-tutorial
+
+            echo "=============================="
+            echo "  SCANNING VM FOR ENV KEYS"
+            echo "=============================="
+
+            # Collect all candidate env files on VM
+            ENV_SOURCES=(
+              "$HOME/dominion/.env"
+              "$HOME/dominion/alchemist/.env"
+              "$HOME/dominion/conductor/.env"
+              "$HOME/dominion/juris/.env"
+              "$HOME/dominion/buddy/.env"
+              "$HOME/dominion/store/.env"
+              "$HOME/.env"
+              "$HOME/desktop-tutorial/.env"
+            )
+
+            # Keys we care about
+            KEYS=(
+              ANTHROPIC_API_KEY
+              GUMROAD_TOKEN
+              BREVO_API_KEY
+              YOUTUBE_API_KEY
+              YOUTUBE_CLIENT_ID
+              YOUTUBE_CLIENT_SECRET
+              OANDA_API_KEY
+              OANDA_ACCOUNT_ID
+              BINANCE_API_KEY
+              BINANCE_API_SECRET
+              TIKTOK_CLIENT_ID
+              TIKTOK_CLIENT_SECRET
+              GCP_PROJECT_ID
+              GCP_REGION
+              GOOGLE_SERVICE_ACCOUNT_JSON
+              GA4_MEASUREMENT_ID
+            )
+
+            # Build merged env: first found value wins
+            declare -A MERGED
+
+            for src in "${ENV_SOURCES[@]}"; do
+              if [ -f "$src" ]; then
+                echo "Reading: $src"
+                while IFS='=' read -r key rest; do
+                  [[ "$key" =~ ^#.*$ || -z "$key" ]] && continue
+                  key="${key%%[[:space:]]*}"
+                  val="${rest}"
+                  # Only capture if key is in our list and not yet found
+                  for wanted in "${KEYS[@]}"; do
+                    if [ "$key" = "$wanted" ] && [ -z "${MERGED[$key]:-}" ] && [ -n "$val" ]; then
+                      MERGED["$key"]="$val"
+                      echo "  ✅ $key found"
+                      break
+                    fi
+                  done
+                done < "$src"
+              fi
+            done
+
+            echo ""
+            echo "=============================="
+            echo "  WRITING ~/desktop-tutorial/.env"
+            echo "=============================="
+
+            # Write merged .env
+            : > .env
+            for key in "${KEYS[@]}"; do
+              val="${MERGED[$key]:-}"
+              if [ -n "$val" ]; then
+                printf '%s=%s\n' "$key" "$val" >> .env
+                echo "  ✅ $key"
+              else
+                echo "  ❌ $key — NOT FOUND on VM"
+              fi
+            done
+
+            echo ""
+            echo "=============================="
+            echo "  VAULT DIRECTORIES"
+            echo "=============================="
+            VAULT_DIR="${HOME}/vault"
+            mkdir -p "${VAULT_DIR}/00-inbox" "${VAULT_DIR}/10-research" "${VAULT_DIR}/20-deals" \
+              "${VAULT_DIR}/30-surplus-cases" "${VAULT_DIR}/40-manual" \
+              "${VAULT_DIR}/90-meta/templates" "${VAULT_DIR}/_attachments" "${VAULT_DIR}/_health"
+            echo "✅ vault dirs ready"
+
+            echo ""
+            echo "=============================="
+            echo "  GIT PULL"
+            echo "=============================="
+            git pull origin main
+
+            echo ""
+            echo "=============================="
+            echo "  DOCKER BUILD + LAUNCH"
+            echo "=============================="
+            docker compose up -d --build
+
+            sleep 8
+
+            echo ""
+            echo "=============================="
+            echo "  HEALTH CHECK"
+            echo "=============================="
+            curl -sf http://localhost:8080/ && echo "✅ baby-api OK" || echo "❌ baby-api FAILED"
+            curl -sf http://localhost:8090/ && echo "✅ dominion-web OK" || echo "❌ dominion-web FAILED"
