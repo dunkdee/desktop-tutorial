@@ -1,0 +1,29 @@
+name: Test Gemini Vertex AI Endpoint
+
+on:
+  workflow_dispatch:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Hit /gemini endpoint on baby-api
+        uses: appleboy/ssh-action@v1.2.0
+        with:
+          host: ${{ secrets.VM_HOST }}
+          username: ${{ secrets.VM_USER }}
+          key: ${{ secrets.VM_SSH_KEY }}
+          script: |
+            echo "=============================="
+            echo "  TEST /gemini (Vertex AI)"
+            echo "=============================="
+            curl -sf http://localhost:8080/gemini 2>/dev/null \
+              | python3 -m json.tool 2>/dev/null \
+              || curl -v http://localhost:8080/gemini 2>&1
+
+            echo ""
+            echo "=============================="
+            echo "  TEST /gumroad (sanity check)"
+            echo "=============================="
+            curl -sf http://localhost:8080/gumroad 2>/dev/null \
+              | python3 -m json.tool 2>/dev/null || echo "gumroad check failed"
