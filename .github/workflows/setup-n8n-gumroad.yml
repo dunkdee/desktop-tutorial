@@ -22,7 +22,6 @@ jobs:
             echo "=============================="
             cd ~/desktop-tutorial
             git pull origin main
-            echo "Latest code pulled"
 
             echo ""
             echo "=============================="
@@ -36,18 +35,7 @@ jobs:
             echo "=============================="
             echo "  PREPARE WORKFLOW JSON"
             echo "=============================="
-            cd ~/desktop-tutorial
-            python3 - <<'PYEOF'
-import json, os
-repo = os.path.expanduser('~/desktop-tutorial')
-wf_path = os.path.join(repo, 'n8n-workflows/gumroad-sale.json')
-with open(wf_path) as f:
-    w = json.load(f)
-w['active'] = True
-with open('/tmp/gumroad-sale-active.json', 'w') as f:
-    json.dump(w, f)
-print('Written to /tmp/gumroad-sale-active.json')
-PYEOF
+            python3 -c 'import json,os; repo=os.path.expanduser("~/desktop-tutorial"); wf=json.load(open(os.path.join(repo,"n8n-workflows/gumroad-sale.json"))); wf["active"]=True; open("/tmp/gumroad-sale-active.json","w").write(json.dumps(wf)); print("JSON ready")'
 
             echo ""
             echo "=============================="
@@ -64,13 +52,11 @@ PYEOF
                 curl -sf -X POST http://localhost:5678/api/v1/workflows \
                   -H "Content-Type: application/json" \
                   -d @/tmp/gumroad-sale-active.json | python3 -m json.tool
-                echo "Imported via unauthenticated API"
               else
                 curl -sf -X POST http://localhost:5678/api/v1/workflows \
                   -H "X-N8N-API-KEY: ${{ secrets.N8N_API_KEY }}" \
                   -H "Content-Type: application/json" \
                   -d @/tmp/gumroad-sale-active.json | python3 -m json.tool
-                echo "Imported via API key"
               fi
             fi
 
@@ -87,15 +73,14 @@ PYEOF
               --data-urlencode "full_name=Test Customer" \
               --data-urlencode "test=true" \
               2>/dev/null || echo "WEBHOOK_NOT_RESPONDING")
-            echo "Webhook test result: $RESULT"
+            echo "Test result: $RESULT"
 
             echo ""
             echo "=============================="
             echo "  DONE"
             echo "=============================="
-            echo "n8n webhook: https://n8n.dominionhealing.org/webhook/gumroad-sale"
-            echo "baby-api endpoint: https://hub.dominionhealing.org/gumroad/ping"
+            echo "n8n webhook live at:"
+            echo "  https://n8n.dominionhealing.org/webhook/gumroad-sale"
             echo ""
-            echo "FINAL STEP (Gumroad UI only):"
-            echo "  app.gumroad.com/settings/advanced"
-            echo "  Ping URL -> https://n8n.dominionhealing.org/webhook/gumroad-sale"
+            echo "Gumroad: app.gumroad.com/settings/advanced"
+            echo "  Ping URL = https://n8n.dominionhealing.org/webhook/gumroad-sale"
