@@ -36,7 +36,7 @@ jobs:
             echo "=============================="
             echo "  DOCKER COMPOSE BUILD + UP"
             echo "=============================="
-            docker compose up -d --build --force-recreate
+            docker compose up -d --build
 
             echo ""
             echo "=============================="
