@@ -25,7 +25,7 @@ def root():
             "OANDA_Account":      flag(os.getenv("OANDA_ACCOUNT_ID")),
             "BinanceUS_API":      flag(os.getenv("BINANCE_API_KEY")),
             "Brevo_API":          flag(os.getenv("BREVO_API_KEY")),
-            "Gemini_API":         flag(os.getenv("GEMINI_API_KEY")),
+            "Gemini_VertexAI":    flag(os.getenv("GCP_PROJECT_ID")),
             "Google_Drive":       flag(os.getenv("GOOGLE_SERVICE_ACCOUNT_JSON")),
             "Google_Analytics":   flag(os.getenv("GA4_MEASUREMENT_ID")),
         }
@@ -33,14 +33,25 @@ def root():
 
 @app.route("/gemini")
 def gemini_status():
-    key = os.getenv("GEMINI_API_KEY")
-    if not key:
-        return jsonify(error="GEMINI_API_KEY not set"), 400
+    project = os.getenv("GCP_PROJECT_ID")
+    if not project:
+        return jsonify(error="GCP_PROJECT_ID not set"), 400
     try:
+        import json as _json
         from google import genai
-        c = genai.Client(api_key=key)
+        from google.oauth2 import service_account
+        sa_json = os.getenv("GOOGLE_SERVICE_ACCOUNT_JSON")
+        location = os.getenv("GCP_REGION", "us-central1")
+        if sa_json:
+            info = _json.loads(sa_json)
+            creds = service_account.Credentials.from_service_account_info(
+                info, scopes=["https://www.googleapis.com/auth/cloud-platform"]
+            )
+            c = genai.Client(vertexai=True, project=project, location=location, credentials=creds)
+        else:
+            c = genai.Client(vertexai=True, project=project, location=location)
         r = c.models.generate_content(model="gemini-2.5-flash", contents="Reply with one word: ONLINE")
-        return jsonify({"status": "connected", "response": r.text.strip()})
+        return jsonify({"status": "connected", "engine": "vertex-ai", "response": r.text.strip()})
     except Exception as e:
         return jsonify({"status": "error", "detail": str(e)}), 500
 

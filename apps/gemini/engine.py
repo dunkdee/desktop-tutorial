@@ -1,20 +1,30 @@
-import os
-import sys
+"""Dominion Gemini content engine — powered by Vertex AI."""
 import json
+import os
 from google import genai
+from google.oauth2 import service_account
 
 FLASH = "gemini-2.5-flash"
 PRO   = "gemini-2.5-pro"
 
-def client():
-    key = os.environ.get("GEMINI_API_KEY")
-    if not key:
-        raise RuntimeError("GEMINI_API_KEY not set")
-    return genai.Client(api_key=key)
-
 SYSTEM = """You are the content engine for Dominion Healing, a personal sovereignty and wealth-building brand.
 Tone: bold, faith-driven, empowering. Never timid. Every word builds authority and inspires action.
 Audience: people ready to break free from limitation and build their empire."""
+
+
+def client():
+    project  = os.environ.get("GCP_PROJECT_ID", "")
+    location = os.environ.get("GCP_REGION", "us-central1")
+    sa_json  = os.environ.get("GOOGLE_SERVICE_ACCOUNT_JSON")
+    if sa_json:
+        info = json.loads(sa_json)
+        project = project or info.get("project_id", "")
+        creds = service_account.Credentials.from_service_account_info(
+            info, scopes=["https://www.googleapis.com/auth/cloud-platform"]
+        )
+        return genai.Client(vertexai=True, project=project, location=location, credentials=creds)
+    return genai.Client(vertexai=True, project=project, location=location)
+
 
 def youtube_script(topic: str, duration_minutes: int = 8) -> dict:
     prompt = f"""Write a complete YouTube video script on: {topic}
@@ -31,6 +41,7 @@ Make it punchy. No filler. Every sentence earns its place."""
     r = c.models.generate_content(model=PRO, contents=SYSTEM + "\n\n" + prompt)
     return {"type": "youtube_script", "topic": topic, "script": r.text}
 
+
 def tiktok_caption(topic: str) -> dict:
     prompt = f"""Write 3 TikTok caption options for a video about: {topic}
 
@@ -44,6 +55,7 @@ Format as Caption 1, Caption 2, Caption 3."""
     c = client()
     r = c.models.generate_content(model=FLASH, contents=SYSTEM + "\n\n" + prompt)
     return {"type": "tiktok_caption", "topic": topic, "captions": r.text}
+
 
 def email_sequence(product: str, num_emails: int = 7) -> dict:
     prompt = f"""Write a {num_emails}-email welcome sequence for buyers of: {product}
@@ -63,6 +75,7 @@ Tone: personal, direct, no corporate speak. Write like a mentor, not a marketer.
     r = c.models.generate_content(model=PRO, contents=SYSTEM + "\n\n" + prompt)
     return {"type": "email_sequence", "product": product, "sequence": r.text}
 
+
 def social_post(topic: str, platform: str = "twitter") -> dict:
     limits = {"twitter": 280, "instagram": 2200, "linkedin": 3000, "facebook": 500}
     limit = limits.get(platform.lower(), 280)
@@ -72,6 +85,7 @@ Include relevant hashtags. Make it shareable. End with a question or CTA."""
     c = client()
     r = c.models.generate_content(model=FLASH, contents=SYSTEM + "\n\n" + prompt)
     return {"type": "social_post", "platform": platform, "topic": topic, "post": r.text}
+
 
 def deep_research(query: str) -> dict:
     prompt = f"""Do deep research on: {query}
@@ -88,6 +102,7 @@ Be specific, not generic. Give actionable intel."""
     c = client()
     r = c.models.generate_content(model=PRO, contents=prompt)
     return {"type": "deep_research", "query": query, "research": r.text}
+
 
 def product_description(product_name: str, price: int, features: list) -> dict:
     features_str = "\n".join(f"- {f}" for f in features)
@@ -109,18 +124,19 @@ Max 400 words. No fluff. Every line sells."""
     r = c.models.generate_content(model=PRO, contents=SYSTEM + "\n\n" + prompt)
     return {"type": "product_description", "product": product_name, "description": r.text}
 
+
 COMMANDS = {
     "youtube": youtube_script,
-    "tiktok": tiktok_caption,
-    "email": email_sequence,
-    "social": social_post,
+    "tiktok":  tiktok_caption,
+    "email":   email_sequence,
+    "social":  social_post,
     "research": deep_research,
     "product": product_description,
 }
 
 if __name__ == "__main__":
     import argparse
-    parser = argparse.ArgumentParser(description="Dominion Gemini Content Engine")
+    parser = argparse.ArgumentParser(description="Dominion Gemini Content Engine (Vertex AI)")
     parser.add_argument("command", choices=COMMANDS.keys())
     parser.add_argument("--topic", "--query", "--product", dest="topic", required=True)
     parser.add_argument("--platform", default="twitter")
