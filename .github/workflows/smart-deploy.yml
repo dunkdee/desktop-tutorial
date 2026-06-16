@@ -120,11 +120,20 @@ jobs:
             echo "=============================="
             docker compose up -d --build --force-recreate
 
-            sleep 8
-
             echo ""
             echo "=============================="
-            echo "  HEALTH CHECK"
+            echo "  HEALTH CHECK (waiting for startup)"
             echo "=============================="
-            curl -sf http://localhost:8080/ && echo "✅ baby-api OK" || echo "❌ baby-api FAILED"
+            for i in $(seq 1 12); do
+              sleep 5
+              if curl -sf http://localhost:8080/ > /dev/null 2>&1; then
+                curl -sf http://localhost:8080/ && echo "✅ baby-api OK (attempt $i)"
+                break
+              fi
+              echo "  ... waiting for baby-api (attempt $i/12)"
+              if [ "$i" = "12" ]; then
+                echo "❌ baby-api FAILED to start after 60s"
+                docker logs desktop-tutorial-baby-api-1 2>&1 | tail -30
+              fi
+            done
             curl -sf http://localhost:8090/ && echo "✅ dominion-web OK" || echo "❌ dominion-web FAILED"
