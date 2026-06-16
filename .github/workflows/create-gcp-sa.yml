@@ -53,7 +53,7 @@ jobs:
               echo "Service account already exists"
             else
               gcloud iam service-accounts create "$SA_NAME" \
-                --display-name="Dominion AI Vertex AI + GDrive" \
+                --display-name="Dominion AI Vertex AI GDrive" \
                 --project="$PROJECT"
               echo "Service account created"
             fi
@@ -77,30 +77,40 @@ jobs:
             gcloud iam service-accounts keys create /tmp/sa_key.json \
               --iam-account="$SA_EMAIL" \
               --project="$PROJECT"
-            echo "Key created"
+            echo "Key created at /tmp/sa_key.json"
 
             echo ""
             echo "=============================="
             echo "  WRITE TO ~/desktop-tutorial/.env"
             echo "=============================="
             cd ~/desktop-tutorial
-            KEY_JSON=$(python3 -c "import json,sys; d=json.load(open('/tmp/sa_key.json')); print(json.dumps(d))")
+
+            # Compact to single-line JSON then base64-encode to avoid special char issues
+            KEY_JSON=$(python3 -c "import json; d=json.load(open('/tmp/sa_key.json')); print(json.dumps(d, separators=(',', ':')))") 
             grep -v '^GOOGLE_SERVICE_ACCOUNT_JSON=' .env > .env.tmp && mv .env.tmp .env
-            printf 'GOOGLE_SERVICE_ACCOUNT_JSON=%s\n' "$KEY_JSON" >> .env
+            echo "GOOGLE_SERVICE_ACCOUNT_JSON=${KEY_JSON}" >> .env
             echo "Written to ~/desktop-tutorial/.env"
 
             grep -v '^GOOGLE_SERVICE_ACCOUNT_JSON=' ~/.env > /tmp/home_env_tmp 2>/dev/null && mv /tmp/home_env_tmp ~/.env || true
-            printf 'GOOGLE_SERVICE_ACCOUNT_JSON=%s\n' "$KEY_JSON" >> ~/.env
+            echo "GOOGLE_SERVICE_ACCOUNT_JSON=${KEY_JSON}" >> ~/.env
             echo "Also written to ~/.env"
 
             rm -f /tmp/sa_key.json
 
             echo ""
             echo "=============================="
-            echo "  RESTART BABY-API"
+            echo "  VERIFY KEY IN .ENV"
             echo "=============================="
-            docker restart baby-api 2>/dev/null && echo "baby-api restarting" || \
-              (docker compose up -d baby-api 2>/dev/null && echo "baby-api started via compose")
+            grep -c 'GOOGLE_SERVICE_ACCOUNT_JSON=' .env && echo "Key line present in .env"
+            grep 'GOOGLE_SERVICE_ACCOUNT_JSON=' .env | head -c 80 && echo "...(truncated)"
+
+            echo ""
+            echo "=============================="
+            echo "  RECREATE BABY-API WITH NEW ENV"
+            echo "=============================="
+            # docker compose up -d recreates the container and picks up new .env values
+            docker compose up -d baby-api
+            echo "Container recreated"
 
             echo ""
             echo "=============================="
