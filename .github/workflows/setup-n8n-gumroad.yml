@@ -43,16 +43,26 @@ jobs:
 
             echo ""
             echo "=============================="
-            echo "  ACTIVATE WORKFLOW"
+            echo "  PUBLISH (ACTIVATE) WORKFLOW"
             echo "=============================="
-            docker exec ${N8N_CONTAINER} n8n update:workflow --id="${WF_ID}" --active=true 2>&1
-            echo "Activation done"
+            docker exec ${N8N_CONTAINER} n8n publish:workflow --id="${WF_ID}" 2>&1 || \
+              docker exec ${N8N_CONTAINER} n8n update:workflow --id="${WF_ID}" --active=true 2>&1 || true
+            echo "Publish done"
+
+            echo ""
+            echo "=============================="
+            echo "  RESTART N8N TO APPLY"
+            echo "=============================="
+            docker restart ${N8N_CONTAINER}
+            echo "Restarting..."
+            sleep 8
+            docker ps --filter "name=${N8N_CONTAINER}" --format "{{.Names}} {{.Status}}"
 
             echo ""
             echo "=============================="
             echo "  TEST WEBHOOK"
             echo "=============================="
-            sleep 3
+            sleep 5
             RESULT=$(curl -sf -X POST "http://localhost:5678/webhook/gumroad-sale" \
               --data-urlencode "sale_id=TEST-001" \
               --data-urlencode "product_name=Divine Sovereignty Blueprint" \
@@ -69,6 +79,6 @@ jobs:
             echo "=============================="
             echo "Webhook live: https://n8n.dominionhealing.org/webhook/gumroad-sale"
             echo ""
-            echo "ONE STEP IN GUMROAD:"
+            echo "ONE STEP IN GUMROAD (UI only):"
             echo "  https://app.gumroad.com/settings/advanced"
             echo "  Ping URL = https://n8n.dominionhealing.org/webhook/gumroad-sale"
