@@ -38,7 +38,7 @@ jobs:
           TIKTOK_CLIENT_ID:            ${{ secrets.TIKTOK_CLIENT_ID }}
           TIKTOK_CLIENT_SECRET:        ${{ secrets.TIKTOK_CLIENT_SECRET }}
           ANTHROPIC_API_KEY:           ${{ secrets.ANTHROPIC_API_KEY }}
-          GEMINI_API_KEY:              ${{ secrets.GEMINI_API_KEY }}
+          GCP_PROJECT_ID:              ${{ secrets.GCP_PROJECT_ID }}
           GA4_MEASUREMENT_ID:          ${{ secrets.GA4_MEASUREMENT_ID }}
           GCP_ZONE:                    ${{ secrets.GCP_REGION }}
         run: |
@@ -67,7 +67,7 @@ jobs:
               printf 'TIKTOK_CLIENT_ID=%s\n'       '${TIKTOK_CLIENT_ID}'     >> .env
               printf 'TIKTOK_CLIENT_SECRET=%s\n'   '${TIKTOK_CLIENT_SECRET}' >> .env
               printf 'ANTHROPIC_API_KEY=%s\n'      '${ANTHROPIC_API_KEY}'    >> .env
-              printf 'GEMINI_API_KEY=%s\n'         '${GEMINI_API_KEY}'       >> .env
+              printf 'GCP_PROJECT_ID=%s\n'         '${GCP_PROJECT_ID}'       >> .env
               printf 'GA4_MEASUREMENT_ID=%s\n'     '${GA4_MEASUREMENT_ID}'   >> .env
 
               git pull origin main

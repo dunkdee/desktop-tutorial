@@ -1,7 +1,8 @@
-"""Gemini-powered script generator — same interface as script_generator.py."""
+"""Gemini script generator via Vertex AI — drop-in for script_generator.py."""
 import json
 import os
 from google import genai
+from google.oauth2 import service_account
 
 PRO = "gemini-2.5-pro"
 
@@ -12,10 +13,17 @@ Keep scenes visual and suitable for AI video generation."""
 
 
 def _client():
-    key = os.environ.get("GEMINI_API_KEY")
-    if not key:
-        raise RuntimeError("GEMINI_API_KEY not set")
-    return genai.Client(api_key=key)
+    project  = os.environ.get("GCP_PROJECT_ID", "")
+    location = os.environ.get("GCP_REGION", "us-central1")
+    sa_json  = os.environ.get("GOOGLE_SERVICE_ACCOUNT_JSON")
+    if sa_json:
+        info = json.loads(sa_json)
+        project = project or info.get("project_id", "")
+        creds = service_account.Credentials.from_service_account_info(
+            info, scopes=["https://www.googleapis.com/auth/cloud-platform"]
+        )
+        return genai.Client(vertexai=True, project=project, location=location, credentials=creds)
+    return genai.Client(vertexai=True, project=project, location=location)
 
 
 def generate_script(prompt: str, title: str) -> str:
