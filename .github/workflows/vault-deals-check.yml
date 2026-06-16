@@ -1,0 +1,41 @@
+name: Vault Deals Check
+
+on:
+  workflow_dispatch:
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check 20-deals vault lane + baby-api logs
+        uses: appleboy/ssh-action@v1.2.0
+        with:
+          host: ${{ secrets.VM_HOST }}
+          username: ${{ secrets.VM_USER }}
+          key: ${{ secrets.VM_SSH_KEY }}
+          script: |
+            echo "=============================="
+            echo "  VAULT 20-DEALS CONTENTS"
+            echo "=============================="
+            VAULT=$(grep '^VAULT_PATH=' ~/desktop-tutorial/.env 2>/dev/null | cut -d= -f2 | tr -d '"' | tr -d "'")
+            VAULT=${VAULT:-/home/malachisingleton8/vault}
+            DEALS="${VAULT}/20-deals"
+            echo "Vault path: $VAULT"
+            echo "Deals dir: $DEALS"
+            echo ""
+            ls -lt "$DEALS" 2>/dev/null | head -20 || echo "20-deals dir not found or empty"
+            echo ""
+            echo "--- Most recent file ---"
+            LATEST=$(ls -t "$DEALS" 2>/dev/null | head -1)
+            if [ -n "$LATEST" ]; then
+              echo "File: $LATEST"
+              cat "${DEALS}/${LATEST}"
+            else
+              echo "No files found"
+            fi
+            echo ""
+            echo "--- baby-api recent logs (gumroad/sale entries) ---"
+            docker logs baby-api --tail=50 2>/dev/null | grep -i "gumroad\|ping\|sale\|vault" || echo "(no gumroad log entries)"
+            echo ""
+            echo "--- n8n recent logs ---"
+            docker logs dominion-n8n --tail=20 2>/dev/null | grep -i "gumroad\|webhook\|execution" || echo "(no relevant n8n entries)"
