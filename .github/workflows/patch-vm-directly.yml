@@ -1,0 +1,398 @@
+name: Patch VM Directly
+
+on:
+  workflow_dispatch:
+
+jobs:
+  patch:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Write new endpoints directly to VM and restart baby-api
+        uses: appleboy/ssh-action@v1.2.0
+        with:
+          host: ${{ secrets.VM_HOST }}
+          username: ${{ secrets.VM_USER }}
+          key: ${{ secrets.VM_SSH_KEY }}
+          script: |
+            set -e
+            APP_DIR=~/desktop-tutorial/api
+
+            echo "=============================="
+            echo "  WRITING vault_io.py"
+            echo "=============================="
+            cat > "${APP_DIR}/vault_io.py" << 'PYEOF'
+import os, tempfile, uuid, re
+from datetime import datetime, timezone
+
+try:
+    import frontmatter
+    _HAS_FRONTMATTER = True
+except ImportError:
+    _HAS_FRONTMATTER = False
+
+VAULT_ROOT = os.environ.get("VAULT_PATH", "/vault")
+
+LANES = {
+    "inbox":    "00-inbox",
+    "research": "10-research",
+    "deals":    "20-deals",
+    "surplus":  "30-surplus-cases",
+    "manual":   "40-manual",
+    "meta":     "90-meta",
+    "health":   "_health",
+}
+
+def _slug(title):
+    return re.sub(r"[^a-z0-9]+", "-", title.lower())[:40].strip("-")
+
+def write_note_atomic(path, content, metadata):
+    d = os.path.dirname(path)
+    os.makedirs(d, exist_ok=True)
+    if _HAS_FRONTMATTER:
+        post = frontmatter.Post(content, **metadata)
+        fd, tmp = tempfile.mkstemp(dir=d, suffix=".tmp")
+        try:
+            with os.fdopen(fd, "wb") as f:
+                frontmatter.dump(post, f)
+                f.flush()
+                os.fsync(f.fileno())
+            os.replace(tmp, path)
+        except Exception:
+            try:
+                os.unlink(tmp)
+            except OSError:
+                pass
+            raise
+    else:
+        header = "---\n"
+        for k, v in metadata.items():
+            header += f"{k}: {v!r}\n"
+        header += "---\n\n"
+        fd, tmp = tempfile.mkstemp(dir=d, suffix=".tmp")
+        try:
+            with os.fdopen(fd, "w") as f:
+                f.write(header + content)
+                f.flush()
+                os.fsync(f.fileno())
+            os.replace(tmp, path)
+        except Exception:
+            try:
+                os.unlink(tmp)
+            except OSError:
+                pass
+            raise
+
+def create_note(lane, title, content, agent, note_type, tags=None, extra_meta=None):
+    ts = datetime.now(timezone.utc)
+    filename = f"{ts.strftime('%Y-%m-%d')}_{_slug(title)}_{str(uuid.uuid4())[:8]}.md"
+    lane_dir = LANES.get(lane, lane)
+    path = os.path.join(VAULT_ROOT, lane_dir, filename)
+    metadata = {
+        "type": note_type,
+        "title": title,
+        "created": ts.isoformat(),
+        "agent": agent,
+        "status": "raw",
+        "tags": tags or [],
+    }
+    if extra_meta:
+        metadata.update(extra_meta)
+    write_note_atomic(path, content, metadata)
+    return path
+
+def list_lane(lane, status_filter=None):
+    lane_dir = LANES.get(lane, lane)
+    lane_path = os.path.join(VAULT_ROOT, lane_dir)
+    if not os.path.isdir(lane_path):
+        return []
+    notes = []
+    for fname in sorted(os.listdir(lane_path)):
+        if not fname.endswith(".md"):
+            continue
+        fpath = os.path.join(lane_path, fname)
+        meta = {"filename": fname, "path": fpath}
+        if _HAS_FRONTMATTER:
+            try:
+                with open(fpath) as f:
+                    post = frontmatter.load(f)
+                meta.update(post.metadata)
+            except Exception:
+                pass
+        if status_filter and meta.get("status") != status_filter:
+            continue
+        notes.append(meta)
+    return notes
+PYEOF
+            echo "✅ vault_io.py written"
+
+            echo ""
+            echo "=============================="
+            echo "  WRITING app.py"
+            echo "=============================="
+            cat > "${APP_DIR}/app.py" << 'PYEOF'
+from flask import Flask, jsonify, request
+import glob, os, requests
+
+app = Flask(__name__)
+
+def flag(v):
+    return "present" if (v and str(v).strip()) else "missing"
+
+def gumroad_get(path, token, params=None):
+    headers = {"Authorization": f"Bearer {token}"}
+    return requests.get(
+        f"https://api.gumroad.com/v2/{path}",
+        headers=headers,
+        params=params or {},
+        timeout=20,
+    )
+
+@app.route("/")
+def root():
+    return {
+        "status": "● Dominion Empire API — LIVE",
+        "integrations": {
+            "YouTube_API_KEY":    flag(os.getenv("YOUTUBE_API_KEY")),
+            "Gumroad_Token":      flag(os.getenv("GUMROAD_TOKEN")),
+            "OANDA_Account":      flag(os.getenv("OANDA_ACCOUNT_ID")),
+            "BinanceUS_API":      flag(os.getenv("BINANCE_API_KEY")),
+            "Gemini_VertexAI":    flag(os.getenv("GCP_PROJECT_ID")),
+            "Google_Drive":       flag(os.getenv("GOOGLE_SERVICE_ACCOUNT_JSON")),
+            "Google_Analytics":   flag(os.getenv("GA4_MEASUREMENT_ID")),
+        }
+    }
+
+@app.route("/gemini")
+def gemini_status():
+    project = os.getenv("GCP_PROJECT_ID")
+    if not project:
+        return jsonify(error="GCP_PROJECT_ID not set"), 400
+    try:
+        import json as _json
+        from google import genai
+        from google.oauth2 import service_account
+        sa_json = os.getenv("GOOGLE_SERVICE_ACCOUNT_JSON")
+        location = os.getenv("GCP_REGION", "us-central1")
+        if sa_json:
+            info = _json.loads(sa_json)
+            creds = service_account.Credentials.from_service_account_info(
+                info, scopes=["https://www.googleapis.com/auth/cloud-platform"]
+            )
+            c = genai.Client(vertexai=True, project=project, location=location, credentials=creds)
+        else:
+            c = genai.Client(vertexai=True, project=project, location=location)
+        r = c.models.generate_content(model="gemini-2.5-flash", contents="Reply with one word: ONLINE")
+        return jsonify({"status": "connected", "engine": "vertex-ai", "response": r.text.strip()})
+    except Exception as e:
+        return jsonify({"status": "error", "detail": str(e)}), 500
+
+@app.route("/youtube")
+def youtube():
+    key = os.getenv("YOUTUBE_API_KEY")
+    if not key:
+        return jsonify(error="Missing YOUTUBE_API_KEY"), 400
+    r = requests.get(
+        "https://www.googleapis.com/youtube/v3/videos",
+        params={"part": "snippet", "chart": "mostPopular", "maxResults": 1, "key": key},
+        timeout=20,
+    )
+    return jsonify(r.json()), r.status_code
+
+@app.route("/gumroad")
+def gumroad():
+    token = os.getenv("GUMROAD_TOKEN")
+    if not token:
+        return jsonify(error="GUMROAD_TOKEN not set"), 400
+    r = gumroad_get("products", token)
+    data = r.json()
+    if not data.get("success"):
+        return jsonify(error="Gumroad rejected the token", detail=data.get("message", "unknown")), r.status_code
+    products = data.get("products", [])
+    return jsonify({
+        "success": True,
+        "product_count": len(products),
+        "products": [
+            {
+                "name": p.get("name"),
+                "published": p.get("published"),
+                "price_cents": p.get("price"),
+                "sales_count": p.get("sales_count"),
+                "url": p.get("short_url"),
+            }
+            for p in products
+        ],
+    })
+
+@app.route("/gumroad/sales")
+def gumroad_sales():
+    token = os.getenv("GUMROAD_TOKEN")
+    if not token:
+        return jsonify(error="GUMROAD_TOKEN not set"), 400
+    r = gumroad_get("sales", token)
+    data = r.json()
+    if not data.get("success"):
+        return jsonify(error="Gumroad rejected the token", detail=data.get("message", "unknown")), r.status_code
+    sales = data.get("sales", [])
+    total = sum(s.get("price", 0) for s in sales) / 100
+    return jsonify({
+        "success": True,
+        "sale_count": len(sales),
+        "total_revenue_usd": round(total, 2),
+        "recent_sales": [
+            {
+                "product": s.get("product_name"),
+                "amount_usd": s.get("price", 0) / 100,
+                "email": s.get("email"),
+                "created_at": s.get("created_at"),
+                "refunded": s.get("refunded"),
+            }
+            for s in sales[:10]
+        ],
+    })
+
+@app.route("/oanda")
+def oanda():
+    key  = os.getenv("OANDA_API_KEY")
+    acct = os.getenv("OANDA_ACCOUNT_ID")
+    if not key or not acct:
+        return jsonify(error="Missing OANDA keys"), 400
+    url = f"https://api-fxpractice.oanda.com/v3/accounts/{acct}/summary"
+    r = requests.get(url, headers={"Authorization": f"Bearer {key}"}, timeout=20)
+    return (r.json(), r.status_code)
+
+@app.route("/binance")
+def binance():
+    r = requests.get("https://api.binance.us/api/v3/time", timeout=20)
+    return (r.json(), r.status_code)
+
+# ── Vault endpoints ──────────────────────────────────────────────────────────
+
+@app.route("/vault/inbox", methods=["POST"])
+def vault_inbox():
+    try:
+        from vault_io import create_note
+    except ImportError:
+        return jsonify(error="vault_io not available — VAULT_PATH not mounted"), 503
+    data = request.get_json(force=True, silent=True) or {}
+    if not data.get("content"):
+        return jsonify(error="content is required"), 400
+    path = create_note(
+        lane="inbox",
+        title=data.get("title", "Untitled"),
+        content=data.get("content", ""),
+        agent=data.get("agent", "baby-api"),
+        note_type=data.get("type", "inbox"),
+        tags=data.get("tags", []),
+        extra_meta=data.get("meta"),
+    )
+    return jsonify({"status": "created", "path": path}), 201
+
+@app.route("/vault/inbox", methods=["GET"])
+def vault_inbox_list():
+    try:
+        from vault_io import list_lane
+    except ImportError:
+        return jsonify(error="vault_io not available"), 503
+    status_filter = request.args.get("status")
+    notes = list_lane("inbox", status_filter=status_filter)
+    return jsonify({"count": len(notes), "notes": notes})
+
+@app.route("/vault/deals", methods=["POST"])
+def vault_deals():
+    try:
+        from vault_io import create_note
+    except ImportError:
+        return jsonify(error="vault_io not available — VAULT_PATH not mounted"), 503
+    data = request.get_json(force=True, silent=True) or {}
+    product = data.get("product_name", "Unknown Product")
+    amount = data.get("amount_usd", 0)
+    email = data.get("email", "unknown")
+    content = (
+        f"**Sale confirmed** via {data.get('source', 'gumroad')}\n\n"
+        f"- Product: {product}\n"
+        f"- Amount: ${amount}\n"
+        f"- Buyer: {email}\n"
+        f"- Order ID: {data.get('order_id', 'n/a')}\n"
+    )
+    path = create_note(
+        lane="deals",
+        title=f"Sale — {product}",
+        content=content,
+        agent=data.get("agent", "n8n"),
+        note_type="sale",
+        tags=["sale", "revenue", "gumroad"],
+        extra_meta={"amount_usd": amount, "buyer_email": email},
+    )
+    return jsonify({"status": "logged", "path": path}), 201
+
+@app.route("/vault/health")
+def vault_health():
+    vault_path = os.getenv("VAULT_PATH", "/vault")
+    if not os.path.isdir(vault_path):
+        return jsonify({"vault": "not mounted", "path": vault_path}), 503
+    notes = glob.glob(os.path.join(vault_path, "**/*.md"), recursive=True)
+    lanes = {}
+    for d in os.listdir(vault_path):
+        full = os.path.join(vault_path, d)
+        if os.path.isdir(full):
+            lanes[d] = len([f for f in os.listdir(full) if f.endswith(".md")])
+    return jsonify({"vault": "mounted", "path": vault_path, "total_notes": len(notes), "lanes": lanes})
+
+# ── AI bridge — any agent on VM calls http://localhost:8080/ai/complete ──────
+
+@app.route("/ai/complete", methods=["POST"])
+def ai_complete():
+    project = os.getenv("GCP_PROJECT_ID")
+    if not project:
+        return jsonify(error="GCP_PROJECT_ID not set"), 503
+    data = request.get_json(force=True, silent=True) or {}
+    prompt = data.get("prompt", "")
+    if not prompt:
+        return jsonify(error="prompt is required"), 400
+    try:
+        import json as _json
+        from google import genai
+        from google.oauth2 import service_account
+        sa_json = os.getenv("GOOGLE_SERVICE_ACCOUNT_JSON")
+        location = os.getenv("GCP_REGION", "us-central1")
+        model = data.get("model", "gemini-2.0-flash-001")
+        if sa_json:
+            info = _json.loads(sa_json)
+            creds = service_account.Credentials.from_service_account_info(
+                info, scopes=["https://www.googleapis.com/auth/cloud-platform"]
+            )
+            client = genai.Client(vertexai=True, project=project, location=location, credentials=creds)
+        else:
+            client = genai.Client(vertexai=True, project=project, location=location)
+        response = client.models.generate_content(model=model, contents=prompt)
+        return jsonify({"text": response.text, "model": model, "engine": "vertex-ai"})
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+if __name__ == "__main__":
+    app.run(host="0.0.0.0", port=8080)
+PYEOF
+            echo "✅ app.py written"
+
+            echo ""
+            echo "=============================="
+            echo "  RESTARTING baby-api"
+            echo "=============================="
+            cd ~/desktop-tutorial
+            docker compose restart baby-api
+            sleep 5
+            curl -sf http://localhost:8080/ && echo "✅ baby-api LIVE" || echo "❌ baby-api not responding"
+
+            echo ""
+            echo "=============================="
+            echo "  AVAILABLE ENDPOINTS"
+            echo "=============================="
+            echo "GET  /               — status"
+            echo "GET  /gemini         — Vertex AI test"
+            echo "GET  /gumroad        — product list"
+            echo "GET  /gumroad/sales  — revenue total"
+            echo "POST /vault/inbox    — log a note"
+            echo "GET  /vault/inbox    — list inbox notes"
+            echo "POST /vault/deals    — log a sale (called by n8n)"
+            echo "GET  /vault/health   — vault mount check"
+            echo "POST /ai/complete    — Vertex AI for any VM agent"
