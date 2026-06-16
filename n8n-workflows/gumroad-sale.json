@@ -1,0 +1,53 @@
+{
+  "name": "Gumroad Sale Handler",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "gumroad-sale",
+        "responseMode": "onReceived",
+        "responseCode": "200",
+        "options": {}
+      },
+      "id": "a1b2c3d4-0001-0001-0001-000000000001",
+      "name": "Gumroad Ping",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [240, 300],
+      "webhookId": "gumroad-sale"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "http://localhost:8080/gumroad/ping",
+        "sendBody": true,
+        "contentType": "json",
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify($json) }}",
+        "options": {}
+      },
+      "id": "a1b2c3d4-0001-0001-0001-000000000002",
+      "name": "Log Sale to Vault",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [460, 300]
+    }
+  ],
+  "connections": {
+    "Gumroad Ping": {
+      "main": [
+        [
+          {
+            "node": "Log Sale to Vault",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1"
+  }
+}

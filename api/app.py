@@ -24,7 +24,7 @@ def root():
             "Gumroad_Token":      flag(os.getenv("GUMROAD_TOKEN")),
             "OANDA_Account":      flag(os.getenv("OANDA_ACCOUNT_ID")),
             "BinanceUS_API":      flag(os.getenv("BINANCE_API_KEY")),
-            "Brevo_API":          flag(os.getenv("BREVO_API_KEY")),
+            "SendGrid_API":       flag(os.getenv("SENDGRID_API_KEY")),
             "Gemini_VertexAI":    flag(os.getenv("GCP_PROJECT_ID")),
             "Google_Drive":       flag(os.getenv("GOOGLE_SERVICE_ACCOUNT_JSON")),
             "Google_Analytics":   flag(os.getenv("GA4_MEASUREMENT_ID")),
@@ -118,6 +118,49 @@ def gumroad_sales():
             for s in sales[:10]
         ],
     })
+
+@app.route("/gumroad/ping", methods=["POST"])
+def gumroad_ping():
+    # Gumroad sends form-encoded; n8n forwards as JSON
+    if request.content_type and "json" in request.content_type:
+        data = request.get_json(force=True, silent=True) or {}
+    else:
+        data = request.form.to_dict()
+
+    sale_id = data.get("sale_id", "unknown")
+    product = data.get("product_name", "Unknown Product")
+    email   = data.get("email", "")
+    cents   = int(data.get("price", 0) or 0)
+    name    = data.get("full_name", "")
+    sale_ts = data.get("sale_timestamp", "")
+    is_test = str(data.get("test", "false")).lower() == "true"
+
+    content = (
+        f"## Sale: {product}\n\n"
+        f"- **Sale ID:** {sale_id}\n"
+        f"- **Customer:** {name} ({email})\n"
+        f"- **Amount:** ${cents / 100:.2f}\n"
+        f"- **Timestamp:** {sale_ts}\n"
+        f"- **Country:** {data.get('ip_country', '')}\n"
+        f"- **Order #:** {data.get('order_number', '')}\n"
+        f"- **Test:** {is_test}\n"
+    )
+
+    try:
+        from vault_io import create_note
+        create_note(
+            lane="deals",
+            title=f"Sale — {product} — {email or sale_id}",
+            content=content,
+            agent="gumroad-webhook",
+            note_type="sale",
+            tags=["sale", "gumroad", "automated"],
+            extra_meta={"sale_id": sale_id, "amount_usd": round(cents / 100, 2), "test": is_test},
+        )
+    except Exception as e:
+        app.logger.error(f"Vault write failed: {e}")
+
+    return jsonify({"received": True, "sale_id": sale_id}), 200
 
 @app.route("/oanda")
 def oanda():
