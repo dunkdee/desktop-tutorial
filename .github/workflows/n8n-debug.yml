@@ -1,0 +1,57 @@
+name: n8n Debug Check
+
+on:
+  workflow_dispatch:
+
+jobs:
+  debug:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check n8n status + send live test
+        uses: appleboy/ssh-action@v1.2.0
+        with:
+          host: ${{ secrets.VM_HOST }}
+          username: ${{ secrets.VM_USER }}
+          key: ${{ secrets.VM_SSH_KEY }}
+          script: |
+            echo "=============================="
+            echo "  N8N CONTAINER STATUS"
+            echo "=============================="
+            docker ps --filter name=dominion-n8n --format "{{.Names}} {{.Status}}"
+
+            echo ""
+            echo "=============================="
+            echo "  N8N FULL RECENT LOGS"
+            echo "=============================="
+            docker logs dominion-n8n --tail=40 2>/dev/null
+
+            echo ""
+            echo "=============================="
+            echo "  TEST WEBHOOK (direct curl from VM)"
+            echo "=============================="
+            RESULT=$(curl -sf -X POST https://n8n.dominionhealing.org/webhook/gumroad-sale \
+              -H 'Content-Type: application/json' \
+              -d '{"sale_id":"test-001","product_name":"Divine Sovereignty Blueprint","email":"test@test.com","price":4700,"full_name":"Test User","test":"true"}' \
+              2>/dev/null || echo "WEBHOOK FAILED")
+            echo "n8n response: $RESULT"
+
+            echo ""
+            echo "=============================="
+            echo "  BABY-API GUMROAD PING (direct)"
+            echo "=============================="
+            DIRECT=$(curl -sf -X POST http://localhost:8080/gumroad/ping \
+              -H 'Content-Type: application/json' \
+              -d '{"sale_id":"test-002","product_name":"Divine Sovereignty Blueprint","email":"test@direct.com","price":4700,"full_name":"Direct Test","test":"true"}' \
+              2>/dev/null || echo "DIRECT FAILED")
+            echo "baby-api response: $DIRECT"
+
+            echo ""
+            echo "=============================="
+            echo "  VAULT 20-DEALS AFTER TEST"
+            echo "=============================="
+            VAULT=$(grep '^VAULT_PATH=' ~/desktop-tutorial/.env 2>/dev/null | cut -d= -f2 | tr -d '"' | tr -d "'")
+            VAULT=${VAULT:-/home/malachisingleton8/vault}
+            ls -lt "${VAULT}/20-deals" 2>/dev/null | head -10
+            echo ""
+            LATEST=$(ls -t "${VAULT}/20-deals" 2>/dev/null | head -1)
+            [ -n "$LATEST" ] && cat "${VAULT}/20-deals/${LATEST}" || echo "Still empty"
