@@ -1,0 +1,58 @@
+name: Find Trading Bot on VM
+
+on:
+  workflow_dispatch:
+
+jobs:
+  find:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Locate trading bot code and status
+        uses: appleboy/ssh-action@v1.2.0
+        with:
+          host: ${{ secrets.VM_HOST }}
+          username: ${{ secrets.VM_USER }}
+          key: ${{ secrets.VM_SSH_KEY }}
+          script: |
+            echo "=============================="
+            echo "  OANDA / BINANCE FILES"
+            echo "=============================="
+            grep -rl "oanda\|OANDA\|v20\|tpqoa\|oandapyV20" ~ --include="*.py" 2>/dev/null | grep -v "__pycache__" | sort
+            echo "---"
+            grep -rl "binance\|BINANCE\|BinanceClient\|ccxt" ~ --include="*.py" 2>/dev/null | grep -v "__pycache__" | sort
+
+            echo ""
+            echo "=============================="
+            echo "  TRADING-NAMED DIRS / FILES"
+            echo "=============================="
+            find ~ -maxdepth 5 \( -name "*trade*" -o -name "*trader*" -o -name "*trading*" -o -name "*bot*" -o -name "*forex*" -o -name "*crypto*" -o -name "*market*" \) 2>/dev/null | grep -v "__pycache__" | grep -v ".git" | sort
+
+            echo ""
+            echo "=============================="
+            echo "  DOMINION TREE (4 levels)"
+            echo "=============================="
+            find ~/dominion -maxdepth 4 -type d 2>/dev/null | sort
+
+            echo ""
+            echo "=============================="
+            echo "  SYSTEMD SERVICES — TRADING"
+            echo "=============================="
+            systemctl list-units --type=service --state=running 2>/dev/null | grep -iE "trade|oanda|binance|bot|forex|crypto|market"
+
+            echo ""
+            echo "=============================="
+            echo "  ALL RUNNING PYTHON PROCESSES"
+            echo "=============================="
+            ps aux | grep python | grep -v grep
+
+            echo ""
+            echo "=============================="
+            echo "  OANDA SYSTEMD SERVICE FILES"
+            echo "=============================="
+            find /etc/systemd/system /lib/systemd/system ~/.config/systemd -name "*.service" 2>/dev/null | xargs grep -l "oanda\|binance\|trade\|bot" 2>/dev/null | sort
+
+            echo ""
+            echo "=============================="
+            echo "  ~/dominion PYTHON FILES"
+            echo "=============================="
+            find ~/dominion -name "*.py" 2>/dev/null | sort
