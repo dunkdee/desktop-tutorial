@@ -1,0 +1,84 @@
+name: Fix dominion-web + Add Caddy Hub Route
+
+on:
+  workflow_dispatch:
+
+jobs:
+  fix:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Fix dominion-web and expose baby-api via Caddy
+        uses: appleboy/ssh-action@v1.2.0
+        with:
+          host: ${{ secrets.VM_HOST }}
+          username: ${{ secrets.VM_USER }}
+          key: ${{ secrets.VM_SSH_KEY }}
+          command_timeout: 5m
+          script: |
+            echo "=============================="
+            echo "  CURRENT DOMINION-WEB STATE"
+            echo "=============================="
+            docker inspect dominion-web --format '{{.State.Status}} | {{.State.Error}}' 2>/dev/null || echo "container not found"
+            docker logs dominion-web 2>&1 | tail -20 || echo "no logs"
+
+            echo ""
+            echo "=============================="
+            echo "  REMOVE STALE CREATED CONTAINER"
+            echo "=============================="
+            docker rm -f dominion-web 2>/dev/null && echo "Removed stale dominion-web" || echo "Nothing to remove"
+
+            echo ""
+            echo "=============================="
+            echo "  REBUILD + START DOMINION-WEB"
+            echo "=============================="
+            cd ~/desktop-tutorial
+            git pull origin main
+            docker compose up -d --build dominion-web
+            sleep 5
+
+            echo ""
+            echo "=============================="
+            echo "  VERIFY PORT 8090"
+            echo "=============================="
+            curl -sf http://localhost:8090/ | head -5 || echo "NOT RESPONDING on 8090"
+            docker ps --filter "name=dominion-web" --format "{{.Names}}: {{.Status}}"
+
+            echo ""
+            echo "=============================="
+            echo "  ADD hub.dominionhealing.org TO CADDY"
+            echo "=============================="
+            CADDYFILE=/etc/caddy/Caddyfile
+            if grep -q "hub.dominionhealing.org" "$CADDYFILE" 2>/dev/null; then
+              echo "hub.dominionhealing.org already in Caddyfile — skipping"
+            else
+              sudo tee -a "$CADDYFILE" > /dev/null << 'CADDY_BLOCK'
+
+hub.dominionhealing.org {
+  encode gzip zstd
+  reverse_proxy 127.0.0.1:8080
+}
+CADDY_BLOCK
+              echo "Added hub.dominionhealing.org → 8080"
+            fi
+
+            echo ""
+            echo "=============================="
+            echo "  RELOAD CADDY"
+            echo "=============================="
+            sudo systemctl reload caddy && echo "Caddy reloaded OK" || sudo systemctl status caddy | tail -10
+
+            echo ""
+            echo "=============================="
+            echo "  FINAL VERIFICATION"
+            echo "=============================="
+            echo "--- baby-api (8080) ---"
+            curl -sf http://localhost:8080/ | python3 -m json.tool 2>/dev/null || echo "baby-api NOT RESPONDING"
+            echo ""
+            echo "--- dominion-web (8090) ---"
+            curl -sf http://localhost:8090/ | head -3 || echo "dominion-web NOT RESPONDING"
+            echo ""
+            echo "--- Caddy status ---"
+            sudo systemctl is-active caddy
+            echo ""
+            echo "--- All running containers ---"
+            docker ps --format "{{.Names}}: {{.Status}}" | sort
