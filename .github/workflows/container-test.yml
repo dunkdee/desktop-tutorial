@@ -1,0 +1,81 @@
+name: Container Connectivity Test
+
+on:
+  workflow_dispatch:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Test n8n to baby-api connectivity
+        uses: appleboy/ssh-action@v1.2.0
+        with:
+          host: ${{ secrets.VM_HOST }}
+          username: ${{ secrets.VM_USER }}
+          key: ${{ secrets.VM_SSH_KEY }}
+          script: |
+            echo "============================="
+            echo "  ALL DOCKER CONTAINERS"
+            echo "============================="
+            docker ps -a --format "table {{.Names}}\t{{.Status}}\t{{.Networks}}"
+
+            echo ""
+            echo "============================="
+            echo "  BABY-API CONTAINER NETWORKS"
+            echo "============================="
+            docker inspect baby-api 2>/dev/null | python3 -c "import json,sys; d=json.load(sys.stdin)[0]; nets=d['NetworkSettings']['Networks']; [print(n, v['IPAddress'], 'GW:', v['Gateway']) for n,v in nets.items()]"
+
+            echo ""
+            echo "============================="
+            echo "  N8N CONTAINER NETWORKS"
+            echo "============================="
+            docker inspect dominion-n8n 2>/dev/null | python3 -c "import json,sys; d=json.load(sys.stdin)[0]; nets=d['NetworkSettings']['Networks']; [print(n, v['IPAddress'], 'GW:', v['Gateway']) for n,v in nets.items()]"
+
+            echo ""
+            echo "============================="
+            echo "  BABY-API DIRECT LOGS TEST"
+            echo "============================="
+            echo "--- Sending test request from VM host ---"
+            curl -sf -X POST http://localhost:8080/gumroad/ping \
+              -H 'Content-Type: application/json' \
+              -d '{"sale_id":"host-test","product_name":"Test","email":"host@test.com","price":100,"test":"true"}'
+            echo ""
+            sleep 1
+            echo "--- baby-api logs after host request ---"
+            docker logs baby-api --tail=30 2>/dev/null
+
+            echo ""
+            echo "============================="
+            echo "  TEST FROM INSIDE N8N CONTAINER"
+            echo "============================="
+            BABY_IP=$(docker inspect baby-api 2>/dev/null | python3 -c "import json,sys; d=json.load(sys.stdin)[0]; nets=d['NetworkSettings']['Networks']; print(list(nets.values())[0]['IPAddress'])")
+            echo "baby-api container IP: $BABY_IP"
+            docker exec dominion-n8n sh -c "curl -sf -X POST http://${BABY_IP}:8080/gumroad/ping -H 'Content-Type: application/json' -d '{\"sale_id\":\"n8n-container-test\",\"test\":\"true\"}' 2>/dev/null || echo 'FAILED - connection refused or network error'"
+
+            echo ""
+            echo "============================="
+            echo "  VAULT AFTER ALL TESTS"
+            echo "============================="
+            VAULT=$(grep '^VAULT_PATH=' ~/desktop-tutorial/.env 2>/dev/null | cut -d= -f2 | tr -d '"' | tr -d "'")
+            VAULT=${VAULT:-/home/malachisingleton8/vault}
+            ls -lt "${VAULT}/20-deals" 2>/dev/null | head -10 || echo "empty"
+            LATEST=$(ls -t "${VAULT}/20-deals" 2>/dev/null | head -1)
+            [ -n "$LATEST" ] && cat "${VAULT}/20-deals/${LATEST}" || echo "Still no vault files"
+
+            echo ""
+            echo "============================="
+            echo "  WRITE TEST FROM INSIDE BABY-API"
+            echo "============================="
+            docker exec baby-api python3 -c "
+import os, sys
+sys.path.insert(0, '/app')
+os.environ['VAULT_PATH'] = '/vault'
+try:
+    from vault_io import create_note
+    p = create_note('deals','Container Direct Test','## Direct write test','container-test','test',['test'],{'test': True})
+    print('VAULT WRITE SUCCESS:', p)
+except Exception as e:
+    print('VAULT WRITE FAILED:', e)
+"
+            echo ""
+            ls -lt "${VAULT}/20-deals" 2>/dev/null | head -5
