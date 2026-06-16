@@ -1,0 +1,124 @@
+name: Create GCP Service Account + Write Key to VM
+
+on:
+  workflow_dispatch:
+
+jobs:
+  create-sa:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Create SA, grant Vertex AI, write key to VM .env
+        uses: appleboy/ssh-action@v1.2.0
+        with:
+          host: ${{ secrets.VM_HOST }}
+          username: ${{ secrets.VM_USER }}
+          key: ${{ secrets.VM_SSH_KEY }}
+          script: |
+            set -e
+
+            echo "=============================="
+            echo "  CHECK GCLOUD AUTH"
+            echo "=============================="
+            gcloud auth list 2>/dev/null || echo "gcloud not in PATH or no auth"
+            which gcloud || { echo "❌ gcloud not found — check PATH"; exit 1; }
+
+            echo ""
+            echo "=============================="
+            echo "  GET PROJECT ID"
+            echo "=============================="
+            # Try gcloud first, fall back to .env
+            PROJECT=$(gcloud config get-value project 2>/dev/null)
+            if [ -z "$PROJECT" ] || [ "$PROJECT" = "(unset)" ]; then
+              PROJECT=$(grep '^GCP_PROJECT_ID=' ~/desktop-tutorial/.env 2>/dev/null | cut -d= -f2 | tr -d '"' | tr -d "'")
+            fi
+            if [ -z "$PROJECT" ]; then
+              PROJECT=$(grep '^GCP_PROJECT_ID=' ~/.env 2>/dev/null | cut -d= -f2 | tr -d '"' | tr -d "'")
+            fi
+            if [ -z "$PROJECT" ]; then
+              # Try metadata server (works on GCP VMs)
+              PROJECT=$(curl -sf -H "Metadata-Flavor: Google" \
+                "http://metadata.google.internal/computeMetadata/v1/project/project-id" 2>/dev/null)
+            fi
+            echo "Project: $PROJECT"
+            [ -z "$PROJECT" ] && { echo "❌ Could not determine GCP project ID"; exit 1; }
+
+            echo ""
+            echo "=============================="
+            echo "  CREATE SERVICE ACCOUNT"
+            echo "=============================="
+            SA_NAME="dominion-ai"
+            SA_EMAIL="${SA_NAME}@${PROJECT}.iam.gserviceaccount.com"
+            echo "SA: $SA_EMAIL"
+
+            if gcloud iam service-accounts describe "$SA_EMAIL" --project="$PROJECT" 2>/dev/null; then
+              echo "✅ Service account already exists"
+            else
+              gcloud iam service-accounts create "$SA_NAME" \
+                --display-name="Dominion AI — Vertex AI + GDrive" \
+                --project="$PROJECT"
+              echo "✅ Service account created"
+            fi
+
+            echo ""
+            echo "=============================="
+            echo "  GRANT VERTEX AI ROLES"
+            echo "=============================="
+            for ROLE in roles/aiplatform.user roles/ml.developer roles/storage.objectViewer; do
+              gcloud projects add-iam-policy-binding "$PROJECT" \
+                --member="serviceAccount:${SA_EMAIL}" \
+                --role="$ROLE" \
+                --quiet 2>/dev/null && echo "✅ $ROLE granted" || echo "⚠️  $ROLE — may already exist or need higher perms"
+            done
+
+            echo ""
+            echo "=============================="
+            echo "  CREATE JSON KEY"
+            echo "=============================="
+            rm -f /tmp/sa_key.json
+            gcloud iam service-accounts keys create /tmp/sa_key.json \
+              --iam-account="$SA_EMAIL" \
+              --project="$PROJECT"
+            echo "✅ Key created"
+
+            echo ""
+            echo "=============================="
+            echo "  WRITE TO ~/desktop-tutorial/.env"
+            echo "=============================="
+            cd ~/desktop-tutorial
+
+            # Compact JSON to single line (no newlines inside the value)
+            KEY_JSON=$(python3 -c "import json,sys; d=json.load(open('/tmp/sa_key.json')); print(json.dumps(d))")
+
+            # Remove old entry, append new one
+            grep -v '^GOOGLE_SERVICE_ACCOUNT_JSON=' .env > .env.tmp && mv .env.tmp .env
+            printf 'GOOGLE_SERVICE_ACCOUNT_JSON=%s\n' "$KEY_JSON" >> .env
+            echo "✅ Written to .env"
+
+            # Also write to ~/.env for global access
+            grep -v '^GOOGLE_SERVICE_ACCOUNT_JSON=' ~/.env > /tmp/home_env_tmp 2>/dev/null && mv /tmp/home_env_tmp ~/.env || true
+            printf 'GOOGLE_SERVICE_ACCOUNT_JSON=%s\n' "$KEY_JSON" >> ~/.env
+            echo "✅ Also written to ~/.env"
+
+            # Secure cleanup
+            rm -f /tmp/sa_key.json
+
+            echo ""
+            echo "=============================="
+            echo "  RESTART BABY-API"
+            echo "=============================="
+            docker restart desktop-tutorial-baby-api-1 2>/dev/null && echo "✅ baby-api restarting" || echo "⚠️  Could not restart baby-api container"
+
+            echo ""
+            echo "=============================="
+            echo "  VERIFY (wait 20s)"
+            echo "=============================="
+            for i in $(seq 1 8); do
+              sleep 5
+              STATUS=$(curl -sf http://localhost:8080/ 2>/dev/null || true)
+              if echo "$STATUS" | grep -q "LIVE"; then
+                echo "✅ baby-api back up (attempt $i)"
+                echo "$STATUS" | python3 -m json.tool 2>/dev/null || echo "$STATUS"
+                break
+              fi
+              echo "  ... waiting (attempt $i/8)"
+            done
