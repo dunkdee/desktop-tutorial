@@ -137,3 +137,12 @@ Format: [DATE] [SESSION] ACTION / FINDING / DECISION
   Once set: trigger baby.yml → entire stack goes live with Gemini + GA4 + Drive backup
   Gumroad: still needs 1 dashboard tap → Content tab → upload PDF → Save & Publish
 ===========================================================
+
+[2026-06-16] [SESSION-005] GUMROAD PRODUCT CONFIRMED LIVE
+  - Dewayne uploaded PDF via Content tab on Gumroad dashboard
+  - Product: "Divine Sovereignty Blueprint: Break Free, Heal Your Mindset & Build Your Empire"
+  - Price: $47
+  - Checkout URL: https://singleton828.gumroad.com/l/xnfyw
+  - Status: PURCHASABLE — buy button live, PDF delivers on checkout
+  - This is the first revenue-generating product in the Dominion Empire stack
+===========================================================

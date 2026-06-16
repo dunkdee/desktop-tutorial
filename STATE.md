@@ -18,13 +18,11 @@ Walk in divine power, wisdom, and sovereignty. Every project aligns with abundan
 | Product: Divine Sovereignty Blueprint | **EXISTS** | ID `Rgc4gza-8hLx7YSIu3vBQA==` |
 | Checkout URL | **LIVE** | `https://singleton828.gumroad.com/l/xnfyw` |
 | Price | $47 | Confirmed in API response |
-| Published flag | **STUCK AT false** | Gumroad API v2 cannot set `published=true` programmatically without a file. Must use dashboard. |
-| PDF file | **GENERATED + HOSTED** | `scripts/gen_blueprint.py` → 5-page PDF on GitHub Release at `https://github.com/dunkdee/desktop-tutorial/releases/download/blueprint-v1/divine-sovereignty-blueprint.pdf` |
+| Published flag | **LIVE ✅** | Product published, PDF uploaded via dashboard Content tab — fully purchasable |
+| PDF file | **DELIVERED ON CHECKOUT ✅** | 5-page Divine Sovereignty Blueprint — buyer receives PDF after $47 purchase |
 | Website CTA button | **WIRED** | Points to `https://singleton828.gumroad.com/l/xnfyw` — `$47` in button text |
 
-> **ONE MANUAL STEP REMAINING:** Go to https://app.gumroad.com/products/Rgc4gza-8hLx7YSIu3vBQA==/edit
-> Download the PDF from the GitHub Release URL above and upload it there (or paste the URL into the Custom Delivery URL field).
-> Then hit Save & Publish. That makes the product live and purchasable.
+> **PRODUCT IS LIVE.** Checkout at https://singleton828.gumroad.com/l/xnfyw — $47, PDF delivers on purchase. First revenue product complete.
 
 ### GitHub Secrets status
 | Secret | Status |
