@@ -17,26 +17,32 @@ jobs:
             echo "=============================="
             echo "  REMOVE STALE CONTAINERS"
             echo "=============================="
-            # Kill any stale containers with conflicting names
-            docker rm -f baby-api 2>/dev/null && echo "Removed: baby-api" || echo "No stale baby-api container"
+            # Remove any container with baby-api, baby-logger, or dominion-web in name
+            docker ps -a --filter "name=baby-api" -q | xargs -r docker rm -f && echo "Removed all baby-api containers" || true
             docker rm -f baby-logger 2>/dev/null && echo "Removed: baby-logger" || echo "No stale baby-logger"
             docker rm -f dominion-web 2>/dev/null && echo "Removed: dominion-web" || echo "No stale dominion-web"
 
-            # Prune all stopped containers
+            # Prune all stopped/created containers
             docker container prune -f 2>/dev/null | tail -2
 
             echo ""
             echo "=============================="
-            echo "  DOCKER COMPOSE UP"
+            echo "  GIT PULL LATEST"
             echo "=============================="
             cd ~/desktop-tutorial
+            git pull origin main
+
+            echo ""
+            echo "=============================="
+            echo "  DOCKER COMPOSE BUILD + UP"
+            echo "=============================="
             docker compose up -d --build --force-recreate
 
             echo ""
             echo "=============================="
-            echo "  VERIFY (up to 60s)"
+            echo "  VERIFY (up to 3 minutes)"
             echo "=============================="
-            for i in $(seq 1 12); do
+            for i in $(seq 1 36); do
               sleep 5
               STATUS=$(curl -sf http://localhost:8080/ 2>/dev/null || true)
               if echo "$STATUS" | grep -q "LIVE"; then
@@ -44,9 +50,10 @@ jobs:
                 echo "$STATUS" | python3 -m json.tool 2>/dev/null || echo "$STATUS"
                 break
               fi
-              echo "  ... waiting (attempt $i/12)"
-              if [ "$i" = "12" ]; then
-                echo "❌ baby-api did not start in 60s"
-                docker logs baby-api 2>&1 | tail -20 || true
+              echo "  ... waiting (attempt $i/36)"
+              if [ "$i" = "36" ]; then
+                echo "❌ baby-api did not start in 180s"
+                docker logs baby-api 2>&1 | tail -30 || true
+                docker ps -a --filter "name=baby-api" 2>/dev/null || true
               fi
             done

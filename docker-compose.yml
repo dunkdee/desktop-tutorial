@@ -2,13 +2,13 @@ version: "3.9"
 
 services:
   baby-api:
-    image: python:3.11-slim
+    build: ./api
     container_name: baby-api
     working_dir: /app
     volumes:
       - ./api:/app
       - ${VAULT_PATH:-/home/malachisingleton8/vault}:/vault
-    command: ["sh", "-c", "pip install --no-cache-dir flask requests google-genai python-frontmatter && python app.py"]
+    command: ["python", "app.py"]
     ports:
       - "8080:8080"
     restart: always
