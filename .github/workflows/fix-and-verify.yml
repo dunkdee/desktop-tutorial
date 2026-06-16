@@ -16,18 +16,9 @@ jobs:
           command_timeout: 3m
           script: |
             echo "============================="
-            echo "  VAULT WRITE TEST (direct exec)"
+            echo "  VAULT WRITE TEST (direct exec inside baby-api)"
             echo "============================="
-            docker exec baby-api sh -c 'cd /app && python3 - <<PYEOF
-import os, sys
-os.environ.setdefault("VAULT_PATH", "/vault")
-try:
-    from vault_io import create_note
-    p = create_note("deals","Direct Container Test","## Test\n- wrote from exec","container","test",["test"],{"direct": True})
-    print("VAULT WRITE OK:", p)
-except Exception as e:
-    print("VAULT WRITE FAIL:", repr(e))
-PYEOF'
+            docker exec baby-api python3 -c 'import os; os.environ.setdefault("VAULT_PATH","/vault"); import sys; sys.path.insert(0,"/app"); from vault_io import create_note; p=create_note("deals","Direct Test","## Test","exec","test",["test"],{"direct":True}); print("OK:",p)' && echo VAULT_WRITE_OK || echo VAULT_WRITE_FAILED
 
             echo ""
             echo "============================="
@@ -41,11 +32,9 @@ PYEOF'
 
             echo ""
             echo "============================="
-            echo "  UPDATE N8N WORKFLOW (172.17.0.1 = n8n bridge gateway)"
+            echo "  UPDATE N8N (172.17.0.1 = n8n bridge GW = host)"
             echo "============================="
-            cat > /tmp/gw2.json << 'ENDJSON'
-{"id":"f47ac10b-58cc-4372-a567-0e02b2c3d479","name":"Gumroad Sale Handler","nodes":[{"parameters":{"httpMethod":"POST","path":"gumroad-sale","responseMode":"onReceived","responseCode":"200","options":{}},"id":"a1b2c3d4-0001-0001-0001-000000000001","name":"Gumroad Ping","type":"n8n-nodes-base.webhook","typeVersion":2,"position":[240,300],"webhookId":"gumroad-sale"},{"parameters":{"method":"POST","url":"http://172.17.0.1:8080/gumroad/ping","sendBody":true,"contentType":"json","specifyBody":"json","jsonBody":"={{ JSON.stringify($json) }}","options":{}},"id":"a1b2c3d4-0001-0001-0001-000000000002","name":"Log Sale to Vault","type":"n8n-nodes-base.httpRequest","typeVersion":4.2,"position":[460,300]}],"connections":{"Gumroad Ping":{"main":[[{"node":"Log Sale to Vault","type":"main","index":0}]]}},"active":true,"settings":{"executionOrder":"v1"}}
-ENDJSON
+            python3 -c 'import json; wf={"id":"f47ac10b-58cc-4372-a567-0e02b2c3d479","name":"Gumroad Sale Handler","nodes":[{"parameters":{"httpMethod":"POST","path":"gumroad-sale","responseMode":"onReceived","responseCode":"200","options":{}},"id":"a1b2c3d4-0001-0001-0001-000000000001","name":"Gumroad Ping","type":"n8n-nodes-base.webhook","typeVersion":2,"position":[240,300],"webhookId":"gumroad-sale"},{"parameters":{"method":"POST","url":"http://172.17.0.1:8080/gumroad/ping","sendBody":True,"contentType":"json","specifyBody":"json","jsonBody":"={{ JSON.stringify($json) }}","options":{}},"id":"a1b2c3d4-0001-0001-0001-000000000002","name":"Log Sale to Vault","type":"n8n-nodes-base.httpRequest","typeVersion":4.2,"position":[460,300]}],"connections":{"Gumroad Ping":{"main":[[{"node":"Log Sale to Vault","type":"main","index":0}]]}},"active":True,"settings":{"executionOrder":"v1"}}; open("/tmp/gw2.json","w").write(json.dumps(wf)); print("JSON written, URL:", wf["nodes"][1]["parameters"]["url"])'
             docker cp /tmp/gw2.json dominion-n8n:/tmp/gw2.json
             docker exec dominion-n8n n8n import:workflow --input=/tmp/gw2.json
             docker exec dominion-n8n n8n publish:workflow --id="f47ac10b-58cc-4372-a567-0e02b2c3d479"
@@ -68,4 +57,4 @@ ENDJSON
             echo "============================="
             ls -lt "${VAULT}/20-deals" 2>/dev/null | head -10
             LATEST=$(ls -t "${VAULT}/20-deals" 2>/dev/null | head -1)
-            [ -n "$LATEST" ] && echo "SUCCESS: $LATEST" || echo "STILL EMPTY"
+            [ -n "$LATEST" ] && echo "PIPELINE SUCCESS: $LATEST" && cat "${VAULT}/20-deals/${LATEST}" || echo "VAULT STILL EMPTY"
