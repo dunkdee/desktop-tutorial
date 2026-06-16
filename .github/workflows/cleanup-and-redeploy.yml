@@ -1,0 +1,52 @@
+name: Cleanup Stale Containers + Redeploy
+
+on:
+  workflow_dispatch:
+
+jobs:
+  cleanup:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Remove stale containers and redeploy
+        uses: appleboy/ssh-action@v1.2.0
+        with:
+          host: ${{ secrets.VM_HOST }}
+          username: ${{ secrets.VM_USER }}
+          key: ${{ secrets.VM_SSH_KEY }}
+          script: |
+            echo "=============================="
+            echo "  REMOVE STALE CONTAINERS"
+            echo "=============================="
+            # Kill any stale containers with conflicting names
+            docker rm -f baby-api 2>/dev/null && echo "Removed: baby-api" || echo "No stale baby-api container"
+            docker rm -f baby-logger 2>/dev/null && echo "Removed: baby-logger" || echo "No stale baby-logger"
+            docker rm -f dominion-web 2>/dev/null && echo "Removed: dominion-web" || echo "No stale dominion-web"
+
+            # Prune all stopped containers
+            docker container prune -f 2>/dev/null | tail -2
+
+            echo ""
+            echo "=============================="
+            echo "  DOCKER COMPOSE UP"
+            echo "=============================="
+            cd ~/desktop-tutorial
+            docker compose up -d --build --force-recreate
+
+            echo ""
+            echo "=============================="
+            echo "  VERIFY (up to 60s)"
+            echo "=============================="
+            for i in $(seq 1 12); do
+              sleep 5
+              STATUS=$(curl -sf http://localhost:8080/ 2>/dev/null || true)
+              if echo "$STATUS" | grep -q "LIVE"; then
+                echo "✅ baby-api UP (attempt $i)"
+                echo "$STATUS" | python3 -m json.tool 2>/dev/null || echo "$STATUS"
+                break
+              fi
+              echo "  ... waiting (attempt $i/12)"
+              if [ "$i" = "12" ]; then
+                echo "❌ baby-api did not start in 60s"
+                docker logs baby-api 2>&1 | tail -20 || true
+              fi
+            done
