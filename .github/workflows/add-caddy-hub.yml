@@ -1,0 +1,32 @@
+name: Add hub.dominionhealing.org to Caddy
+
+on:
+  workflow_dispatch:
+
+jobs:
+  caddy-hub:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Add hub subdomain and reload Caddy
+        uses: appleboy/ssh-action@v1.2.0
+        with:
+          host: ${{ secrets.VM_HOST }}
+          username: ${{ secrets.VM_USER }}
+          key: ${{ secrets.VM_SSH_KEY }}
+          script: |
+            set -e
+            CADDYFILE=/etc/caddy/Caddyfile
+
+            # Only add the block if it's not already there
+            if grep -q "hub.dominionhealing.org" "$CADDYFILE"; then
+              echo "hub.dominionhealing.org already in Caddyfile — skipping"
+            else
+              echo "" | sudo tee -a "$CADDYFILE"
+              printf 'hub.dominionhealing.org {\n    reverse_proxy localhost:8080\n}\n' | sudo tee -a "$CADDYFILE"
+              echo "Added hub.dominionhealing.org → localhost:8080"
+            fi
+
+            sudo caddy validate --config "$CADDYFILE" && sudo systemctl reload caddy
+            echo "Caddy reloaded successfully"
+            echo ""
+            echo "hub.dominionhealing.org is now live → http://localhost:8080"

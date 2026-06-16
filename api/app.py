@@ -1,5 +1,5 @@
-from flask import Flask, jsonify
-import os, requests
+from flask import Flask, jsonify, request
+import glob, os, requests
 
 app = Flask(__name__)
 
@@ -133,6 +133,111 @@ def oanda():
 def binance():
     r = requests.get("https://api.binance.us/api/v3/time", timeout=20)
     return (r.json(), r.status_code)
+
+# ── Vault endpoints ──────────────────────────────────────────────────────────
+
+@app.route("/vault/inbox", methods=["POST"])
+def vault_inbox():
+    try:
+        from vault_io import create_note
+    except ImportError:
+        return jsonify(error="vault_io not available — VAULT_PATH not mounted"), 503
+    data = request.get_json(force=True, silent=True) or {}
+    if not data.get("content"):
+        return jsonify(error="content is required"), 400
+    path = create_note(
+        lane="inbox",
+        title=data.get("title", "Untitled"),
+        content=data.get("content", ""),
+        agent=data.get("agent", "baby-api"),
+        note_type=data.get("type", "inbox"),
+        tags=data.get("tags", []),
+        extra_meta=data.get("meta"),
+    )
+    return jsonify({"status": "created", "path": path}), 201
+
+@app.route("/vault/inbox", methods=["GET"])
+def vault_inbox_list():
+    try:
+        from vault_io import list_lane
+    except ImportError:
+        return jsonify(error="vault_io not available"), 503
+    status_filter = request.args.get("status")
+    notes = list_lane("inbox", status_filter=status_filter)
+    return jsonify({"count": len(notes), "notes": notes})
+
+@app.route("/vault/deals", methods=["POST"])
+def vault_deals():
+    """Log a confirmed Gumroad sale to the 20-deals vault lane."""
+    try:
+        from vault_io import create_note
+    except ImportError:
+        return jsonify(error="vault_io not available — VAULT_PATH not mounted"), 503
+    data = request.get_json(force=True, silent=True) or {}
+    product = data.get("product_name", "Unknown Product")
+    amount = data.get("amount_usd", 0)
+    email = data.get("email", "unknown")
+    content = (
+        f"**Sale confirmed** via {data.get('source', 'gumroad')}\n\n"
+        f"- Product: {product}\n"
+        f"- Amount: ${amount}\n"
+        f"- Buyer: {email}\n"
+        f"- Order ID: {data.get('order_id', 'n/a')}\n"
+    )
+    path = create_note(
+        lane="deals",
+        title=f"Sale — {product}",
+        content=content,
+        agent=data.get("agent", "n8n"),
+        note_type="sale",
+        tags=["sale", "revenue", "gumroad"],
+        extra_meta={"amount_usd": amount, "buyer_email": email},
+    )
+    return jsonify({"status": "logged", "path": path}), 201
+
+@app.route("/vault/health")
+def vault_health():
+    vault_path = os.getenv("VAULT_PATH", "/vault")
+    if not os.path.isdir(vault_path):
+        return jsonify({"vault": "not mounted", "path": vault_path}), 503
+    notes = glob.glob(os.path.join(vault_path, "**/*.md"), recursive=True)
+    lanes = {}
+    for d in os.listdir(vault_path):
+        full = os.path.join(vault_path, d)
+        if os.path.isdir(full):
+            lanes[d] = len([f for f in os.listdir(full) if f.endswith(".md")])
+    return jsonify({"vault": "mounted", "path": vault_path, "total_notes": len(notes), "lanes": lanes})
+
+# ── AI bridge — any agent on VM calls http://localhost:8080/ai/complete ──────
+
+@app.route("/ai/complete", methods=["POST"])
+def ai_complete():
+    project = os.getenv("GCP_PROJECT_ID")
+    if not project:
+        return jsonify(error="GCP_PROJECT_ID not set"), 503
+    data = request.get_json(force=True, silent=True) or {}
+    prompt = data.get("prompt", "")
+    if not prompt:
+        return jsonify(error="prompt is required"), 400
+    try:
+        import json as _json
+        from google import genai
+        from google.oauth2 import service_account
+        sa_json = os.getenv("GOOGLE_SERVICE_ACCOUNT_JSON")
+        location = os.getenv("GCP_REGION", "us-central1")
+        model = data.get("model", "gemini-2.0-flash-001")
+        if sa_json:
+            info = _json.loads(sa_json)
+            creds = service_account.Credentials.from_service_account_info(
+                info, scopes=["https://www.googleapis.com/auth/cloud-platform"]
+            )
+            client = genai.Client(vertexai=True, project=project, location=location, credentials=creds)
+        else:
+            client = genai.Client(vertexai=True, project=project, location=location)
+        response = client.models.generate_content(model=model, contents=prompt)
+        return jsonify({"text": response.text, "model": model, "engine": "vertex-ai"})
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
 
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=8080)
