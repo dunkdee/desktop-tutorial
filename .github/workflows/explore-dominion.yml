@@ -1,0 +1,68 @@
+name: Explore Dominion System
+
+on:
+  workflow_dispatch:
+
+jobs:
+  explore:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Map the full dominion ecosystem on VM
+        uses: appleboy/ssh-action@v1.2.0
+        with:
+          host: ${{ secrets.VM_HOST }}
+          username: ${{ secrets.VM_USER }}
+          key: ${{ secrets.VM_SSH_KEY }}
+          script: |
+            echo "=============================="
+            echo "  HOME DIRECTORY"
+            echo "=============================="
+            ls -la ~/
+
+            echo ""
+            echo "=============================="
+            echo "  DOMINION TREE (3 levels)"
+            echo "=============================="
+            find ~/dominion -maxdepth 3 | sort
+
+            echo ""
+            echo "=============================="
+            echo "  PYTHON FILES IN ~/dominion"
+            echo "=============================="
+            find ~/dominion -name "*.py" | sort
+
+            echo ""
+            echo "=============================="
+            echo "  RUNNING PROCESSES"
+            echo "=============================="
+            ps aux | grep -E "python|gunicorn|uvicorn|caddy|nginx|node|flask" | grep -v grep
+
+            echo ""
+            echo "=============================="
+            echo "  LISTENING PORTS"
+            echo "=============================="
+            ss -tlnp 2>/dev/null || netstat -tlnp 2>/dev/null || echo "no ss/netstat"
+
+            echo ""
+            echo "=============================="
+            echo "  CADDY CONFIG"
+            echo "=============================="
+            cat /etc/caddy/Caddyfile 2>/dev/null || cat ~/Caddyfile 2>/dev/null || cat ~/dominion/Caddyfile 2>/dev/null || echo "Caddyfile not found at common paths"
+
+            echo ""
+            echo "=============================="
+            echo "  SYSTEMD SERVICES"
+            echo "=============================="
+            systemctl list-units --type=service --state=running 2>/dev/null | grep -v "^$" | head -30
+
+            echo ""
+            echo "=============================="
+            echo "  DESKTOP-TUTORIAL DOCKER"
+            echo "=============================="
+            docker ps 2>/dev/null || echo "docker not accessible"
+
+            echo ""
+            echo "=============================="
+            echo "  ENV VARS IN ~/dominion"
+            echo "=============================="
+            find ~/dominion -name ".env" -o -name "*.env" -o -name "config.py" -o -name "settings.py" 2>/dev/null | sort
