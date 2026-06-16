@@ -29,7 +29,7 @@ services:
       GCP_PROJECT_ID: ${GCP_PROJECT_ID}
       GCP_REGION: ${GCP_REGION:-us-central1}
       ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY}
-      GA4_MEASUREMENT_ID: ${GA4_MEASUREMENT_ID:-G-XXXXXXXXXX}
+      GA4_MEASUREMENT_ID: ${GA4_MEASUREMENT_ID:-G-8DXWMYHNY2}
       VAULT_PATH: /vault
     healthcheck:
       test: ["CMD-SHELL", "python -c 'import urllib.request; urllib.request.urlopen(\"http://localhost:8080/\").read(); print(\"OK\")' || exit 1"]
@@ -51,4 +51,4 @@ services:
       - "8090:80"
     restart: always
     environment:
-      GA4_MEASUREMENT_ID: ${GA4_MEASUREMENT_ID:-G-XXXXXXXXXX}
+      GA4_MEASUREMENT_ID: ${GA4_MEASUREMENT_ID:-G-8DXWMYHNY2}

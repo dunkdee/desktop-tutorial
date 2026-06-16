@@ -1,0 +1,44 @@
+name: Set GA4 Measurement ID on VM
+
+on:
+  workflow_dispatch:
+
+jobs:
+  set-ga4:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Write GA4_MEASUREMENT_ID to .env and restart containers
+        uses: appleboy/ssh-action@v1.2.0
+        with:
+          host: ${{ secrets.VM_HOST }}
+          username: ${{ secrets.VM_USER }}
+          key: ${{ secrets.VM_SSH_KEY }}
+          script: |
+            GA4_ID="G-8DXWMYHNY2"
+
+            echo "=============================="
+            echo "  UPDATE .ENV"
+            echo "=============================="
+            cd ~/desktop-tutorial
+            grep -v '^GA4_MEASUREMENT_ID=' .env > .env.tmp && mv .env.tmp .env
+            echo "GA4_MEASUREMENT_ID=${GA4_ID}" >> .env
+            echo "✅ Written: GA4_MEASUREMENT_ID=${GA4_ID}"
+
+            echo ""
+            echo "=============================="
+            echo "  GIT PULL + RESTART CONTAINERS"
+            echo "=============================="
+            git pull origin main
+
+            # Remove old containers so new env is picked up
+            docker ps -a --filter "name=baby-api" -q | xargs -r docker rm -f
+            docker rm -f dominion-web 2>/dev/null || true
+
+            docker compose up -d --build
+
+            echo ""
+            echo "=============================="
+            echo "  VERIFY"
+            echo "=============================="
+            sleep 5
+            curl -sf http://localhost:8080/ 2>/dev/null | python3 -m json.tool 2>/dev/null || echo "baby-api starting..."
