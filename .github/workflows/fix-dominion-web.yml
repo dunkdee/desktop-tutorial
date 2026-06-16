@@ -41,7 +41,7 @@ jobs:
             echo "  VERIFY PORT 8090"
             echo "=============================="
             curl -sf http://localhost:8090/ | head -5 || echo "NOT RESPONDING on 8090"
-            docker ps --filter "name=dominion-web" --format "{{.Names}}: {{.Status}}"
+            docker ps --filter "name=dominion-web" --format "table {{.Names}}\t{{.Status}}"
 
             echo ""
             echo "=============================="
@@ -49,16 +49,10 @@ jobs:
             echo "=============================="
             CADDYFILE=/etc/caddy/Caddyfile
             if grep -q "hub.dominionhealing.org" "$CADDYFILE" 2>/dev/null; then
-              echo "hub.dominionhealing.org already in Caddyfile — skipping"
+              echo "hub.dominionhealing.org already in Caddyfile - skipping"
             else
-              sudo tee -a "$CADDYFILE" > /dev/null << 'CADDY_BLOCK'
-
-hub.dominionhealing.org {
-  encode gzip zstd
-  reverse_proxy 127.0.0.1:8080
-}
-CADDY_BLOCK
-              echo "Added hub.dominionhealing.org → 8080"
+              printf '\nhub.dominionhealing.org {\n  encode gzip zstd\n  reverse_proxy 127.0.0.1:8080\n}\n' | sudo tee -a "$CADDYFILE" > /dev/null
+              echo "Added hub.dominionhealing.org -> 8080"
             fi
 
             echo ""
@@ -81,4 +75,4 @@ CADDY_BLOCK
             sudo systemctl is-active caddy
             echo ""
             echo "--- All running containers ---"
-            docker ps --format "{{.Names}}: {{.Status}}" | sort
+            docker ps --format "table {{.Names}}\t{{.Status}}" | sort
