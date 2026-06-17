@@ -1,0 +1,46 @@
+name: Deploy Movie Generator to VM
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - claude/movie-generator-youtube-b50wx2
+    paths:
+      - 'apps/youtube/**'
+      - 'docker-compose.yml'
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Deploy movie-generator to VM
+        uses: appleboy/ssh-action@v0.1.10
+        with:
+          host: ${{ secrets.VM_HOST }}
+          username: ${{ secrets.VM_USER }}
+          key: ${{ secrets.VM_SSH_KEY }}
+          script: |
+            set -e
+            cd ~/desktop-tutorial
+
+            echo "Fetching latest..."
+            git fetch --all
+
+            echo "Checking out movie-generator branch..."
+            git checkout claude/movie-generator-youtube-b50wx2
+            git reset --hard origin/claude/movie-generator-youtube-b50wx2
+
+            echo "Writing env vars..."
+            export ANTHROPIC_API_KEY="${{ secrets.ANTHROPIC_API_KEY }}"
+            export HIGGINS_API_KEY="${{ secrets.HIGGINS_API_KEY }}"
+            export HIGGINS_API_URL="${{ secrets.HIGGINS_API_URL }}"
+            export YOUTUBE_CLIENT_ID="${{ secrets.YOUTUBE_CLIENT_ID }}"
+            export YOUTUBE_CLIENT_SECRET="${{ secrets.YOUTUBE_CLIENT_SECRET }}"
+            export YOUTUBE_REDIRECT_URI="${{ secrets.YOUTUBE_REDIRECT_URI }}"
+
+            echo "Building and starting movie-generator container..."
+            docker compose up -d --build movie-generator
+
+            echo "Waiting for health check..."
+            sleep 8
+            curl -sf http://localhost:8001/healthz && echo "movie-generator is up" || echo "health check pending"
