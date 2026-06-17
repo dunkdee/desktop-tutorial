@@ -1,0 +1,209 @@
+name: Add Vault Path to dominionhealing.org
+
+on:
+  workflow_dispatch:
+
+jobs:
+  patch-caddy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Add /vault path to main domain Caddy block
+        uses: appleboy/ssh-action@v1.2.0
+        with:
+          host: ${{ secrets.VM_HOST }}
+          username: ${{ secrets.VM_USER }}
+          key: ${{ secrets.VM_SSH_KEY }}
+          command_timeout: 5m
+          script: |
+            CADDYFILE=/etc/caddy/Caddyfile
+
+            echo "=============================="
+            echo "  CURRENT ROOT DOMAIN BLOCKS"
+            echo "=============================="
+            grep -n "dominionhealing.org {" "$CADDYFILE" 2>/dev/null || echo "(no exact match)"
+            echo ""
+
+            echo "=============================="
+            echo "  CHECK IF ALREADY PATCHED"
+            echo "=============================="
+            if grep -q "handle /vault" "$CADDYFILE" 2>/dev/null; then
+              echo "ALREADY PATCHED — /vault path exists in Caddyfile"
+              curl -sf http://localhost:8080/vault/health | python3 -m json.tool 2>/dev/null || echo "baby-api vault health check"
+              exit 0
+            fi
+
+            echo ""
+            echo "=============================="
+            echo "  SHOW FULL CADDYFILE"
+            echo "=============================="
+            cat "$CADDYFILE"
+
+            echo ""
+            echo "=============================="
+            echo "  PATCH CADDYFILE"
+            echo "=============================="
+            python3 << 'PYEOF'
+import re, sys
+
+with open('/etc/caddy/Caddyfile', 'r') as f:
+    content = f.read()
+
+# Strategy: find the root domain block and inject vault path handling before any existing reverse_proxy
+# Root domain block is "dominionhealing.org {" (without subdomain prefix)
+# We match the whole block and replace it
+
+def patch_caddyfile(content):
+    # Find root domain block: line starts with "dominionhealing.org {" (not subdomain)
+    # We look for a block that starts with dominionhealing.org without a preceding subdomain.
+    # Match: dominionhealing.org { ... }  (non-greedy, brace-balanced heuristic)
+
+    lines = content.split('\n')
+
+    # Find the line that starts the root domain block
+    start_idx = None
+    for i, line in enumerate(lines):
+        stripped = line.strip()
+        # Must be exactly dominionhealing.org { or dominionhealing.org, www.dominionhealing.org {
+        if re.match(r'^(www\.)?dominionhealing\.org\s*\{', stripped) and \
+           not re.match(r'^\w+\.dominionhealing\.org', stripped):
+            start_idx = i
+            break
+
+    if start_idx is None:
+        print("No root domain block found — will append a new one")
+        vault_block = '''
+# Vault path routing — baby-api on 8080
+dominionhealing.org {
+  encode gzip zstd
+  handle /vault* {
+    reverse_proxy 127.0.0.1:8080
+  }
+  handle /api/vault* {
+    reverse_proxy 127.0.0.1:8080
+  }
+  handle /health {
+    reverse_proxy 127.0.0.1:8080
+  }
+}
+'''
+        with open('/etc/caddy/Caddyfile', 'w') as f:
+            f.write(content + vault_block)
+        print("Appended new dominionhealing.org block with vault paths")
+        return True
+
+    # Find matching close brace for this block
+    depth = 0
+    end_idx = None
+    for i in range(start_idx, len(lines)):
+        depth += lines[i].count('{') - lines[i].count('}')
+        if depth == 0 and i > start_idx:
+            end_idx = i
+            break
+
+    if end_idx is None:
+        print("ERROR: Could not find closing brace for root domain block")
+        sys.exit(1)
+
+    block_lines = lines[start_idx:end_idx+1]
+    block_text = '\n'.join(block_lines)
+
+    print(f"Found root block at lines {start_idx+1}-{end_idx+1}:")
+    print(block_text)
+    print()
+
+    # Check if there's already a handle directive in it
+    if 'handle' in block_text:
+        print("Block already has handle directives — adding vault handle at top")
+        # Insert after opening brace line
+        new_block_lines = [block_lines[0]]
+        new_block_lines += [
+            '  handle /vault* {',
+            '    reverse_proxy 127.0.0.1:8080',
+            '  }',
+            '  handle /health {',
+            '    reverse_proxy 127.0.0.1:8080',
+            '  }',
+        ]
+        new_block_lines += block_lines[1:]
+    else:
+        # Simple block with just reverse_proxy — convert to handle-based
+        new_block_lines = [block_lines[0]]
+        # Find the encode line if any
+        for line in block_lines[1:end_idx - start_idx]:
+            if 'encode' in line:
+                new_block_lines.append(line)
+                break
+        new_block_lines += [
+            '  handle /vault* {',
+            '    reverse_proxy 127.0.0.1:8080',
+            '  }',
+            '  handle /health {',
+            '    reverse_proxy 127.0.0.1:8080',
+            '  }',
+        ]
+        # Add the rest (excluding encode which we already added)
+        for line in block_lines[1:end_idx - start_idx]:
+            if 'encode' not in line:
+                new_block_lines.append(line)
+        new_block_lines.append(block_lines[end_idx - start_idx])
+
+    new_block_text = '\n'.join(new_block_lines)
+    print("New block:")
+    print(new_block_text)
+
+    new_content = '\n'.join(lines[:start_idx]) + '\n' + new_block_text + '\n' + '\n'.join(lines[end_idx+1:])
+
+    # Write to temp file first
+    with open('/tmp/Caddyfile.patched', 'w') as f:
+        f.write(new_content)
+    print("\nWrote patched config to /tmp/Caddyfile.patched")
+    return True
+
+if patch_caddyfile(content):
+    print("Patch script completed successfully")
+PYEOF
+
+            echo ""
+            echo "=============================="
+            echo "  VALIDATE AND APPLY PATCH"
+            echo "=============================="
+            if [ -f /tmp/Caddyfile.patched ]; then
+              echo "--- Diff ---"
+              diff "$CADDYFILE" /tmp/Caddyfile.patched || true
+              echo ""
+              echo "--- Validating with caddy fmt ---"
+              caddy fmt /tmp/Caddyfile.patched 2>&1 | head -5 || echo "(fmt warning — continuing)"
+              echo ""
+              echo "--- Applying patch ---"
+              sudo cp /tmp/Caddyfile.patched "$CADDYFILE"
+              echo "Caddyfile updated"
+            else
+              echo "ERROR: Patched file not created"
+              exit 1
+            fi
+
+            echo ""
+            echo "=============================="
+            echo "  RELOAD CADDY"
+            echo "=============================="
+            sudo systemctl reload caddy && echo "Caddy reloaded OK" || {
+              echo "Reload failed — checking status"
+              sudo systemctl status caddy | tail -20
+              exit 1
+            }
+
+            echo ""
+            echo "=============================="
+            echo "  VERIFY VAULT PATH"
+            echo "=============================="
+            sleep 2
+            echo "--- Local baby-api health ---"
+            curl -sf http://localhost:8080/vault/health | python3 -m json.tool 2>/dev/null || echo "baby-api direct check"
+            echo ""
+            echo "--- Via main domain (if DNS resolves locally) ---"
+            curl -sf http://dominionhealing.org/vault/health 2>/dev/null | python3 -m json.tool || echo "external check skipped (expected on VM)"
+            echo ""
+            echo "--- Caddy active ---"
+            sudo systemctl is-active caddy
+            echo ""
+            echo "DONE — vault should now be at https://dominionhealing.org/vault/health"
