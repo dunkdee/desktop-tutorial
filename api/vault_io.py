@@ -24,7 +24,7 @@ def write_note_atomic(path, content, metadata):
     os.makedirs(d, exist_ok=True)
     fd, tmp = tempfile.mkstemp(dir=d, suffix=".tmp")
     try:
-        with os.fdopen(fd, "wb") as f:
+        with os.fdopen(fd, "w") as f:
             frontmatter.dump(post, f)
             f.flush()
             os.fsync(f.fileno())
