@@ -36,9 +36,34 @@ services:
     command: ["sh", "-c", "while true; do echo '👑 Baby heartbeat: empire integrations running'; sleep 30; done"]
     restart: always
 
+  movie-generator:
+    build: ./apps/youtube
+    container_name: movie-generator
+    ports:
+      - "8001:8000"
+    restart: always
+    environment:
+      ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY}
+      HIGGINS_API_KEY: ${HIGGINS_API_KEY}
+      HIGGINS_API_URL: ${HIGGINS_API_URL}
+      YOUTUBE_CLIENT_ID: ${YOUTUBE_CLIENT_ID}
+      YOUTUBE_CLIENT_SECRET: ${YOUTUBE_CLIENT_SECRET}
+      YOUTUBE_REDIRECT_URI: ${YOUTUBE_REDIRECT_URI}
+    volumes:
+      - movie_tmp:/tmp
+    healthcheck:
+      test: ["CMD-SHELL", "python -c 'import urllib.request; urllib.request.urlopen(\"http://localhost:8000/healthz\").read()' || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 15s
+
   dominion-web:
     build: ./web
     container_name: dominion-web
     ports:
       - "80:80"
     restart: always
+
+volumes:
+  movie_tmp:
