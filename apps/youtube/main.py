@@ -1,17 +1,22 @@
-from fastapi import FastAPI, BackgroundTasks, HTTPException
+from fastapi import FastAPI, BackgroundTasks, HTTPException, Security
+from fastapi.security import APIKeyHeader
 from pydantic import BaseModel
-from typing import Optional
-import asyncio
+import os
 import concurrent.futures
 
 from script_generator import generate_script, generate_title_and_description
 from pipeline import run_pipeline, PipelineResult
 from youtube_uploader import get_oauth_url, exchange_code
 
-app = FastAPI(title="Movie Generator", description="Claude Fable 5 + Higgins → YouTube")
+app = FastAPI(title="Higgins Movie Generator", description="Claude Fable 5 → YouTube")
 
-_executor = concurrent.futures.ThreadPoolExecutor(max_workers=4)
+_api_key_header = APIKeyHeader(name="X-Higgins-Key", auto_error=True)
 _jobs: dict[str, PipelineResult] = {}
+
+
+def _require_key(key: str = Security(_api_key_header)):
+    if key != os.environ.get("HIGGINS_API_KEY", ""):
+        raise HTTPException(status_code=403, detail="Invalid API key")
 
 
 class ScriptRequest(BaseModel):
@@ -33,15 +38,14 @@ def health():
 
 
 @app.post("/script/generate")
-def create_script(req: ScriptRequest):
-    """Generate a full screenplay using Claude Fable 5."""
+def create_script(req: ScriptRequest, _=Security(_require_key)):
     script = generate_script(req.prompt, req.title)
     meta = generate_title_and_description(script, req.title)
     return {"title": req.title, "script": script, "youtube_meta": meta}
 
 
 @app.post("/pipeline/start")
-def start_pipeline(req: PipelineRequest, bg: BackgroundTasks):
+def start_pipeline(req: PipelineRequest, bg: BackgroundTasks, _=Security(_require_key)):
     """
     Launch the full movie pipeline in the background:
     script → Higgins video clips → concatenate → YouTube upload.
@@ -66,7 +70,7 @@ def start_pipeline(req: PipelineRequest, bg: BackgroundTasks):
 
 
 @app.get("/pipeline/status/{job_id}")
-def pipeline_status(job_id: str):
+def pipeline_status(job_id: str, _=Security(_require_key)):
     if job_id not in _jobs:
         raise HTTPException(status_code=404, detail="Job not found")
     r = _jobs[job_id]

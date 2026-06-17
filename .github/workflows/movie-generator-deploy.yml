@@ -32,8 +32,8 @@ jobs:
 
             echo "Writing env vars..."
             export ANTHROPIC_API_KEY="${{ secrets.ANTHROPIC_API_KEY }}"
-            export HIGGINS_API_KEY="${{ secrets.HIGGINS_API_KEY }}"
-            export HIGGINS_API_URL="${{ secrets.HIGGINS_API_URL }}"
+            export HIGGINS_API_KEY="${{ secrets.HIGGINS_SERVICE_KEY }}"
+            export HIGGINS_API_URL="http://localhost:8001"
             export YOUTUBE_CLIENT_ID="${{ secrets.YOUTUBE_CLIENT_ID }}"
             export YOUTUBE_CLIENT_SECRET="${{ secrets.YOUTUBE_CLIENT_SECRET }}"
             export YOUTUBE_REDIRECT_URI="${{ secrets.YOUTUBE_REDIRECT_URI }}"
