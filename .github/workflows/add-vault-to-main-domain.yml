@@ -7,7 +7,7 @@ jobs:
   patch-caddy:
     runs-on: ubuntu-latest
     steps:
-      - name: Route /vault on dominionhealing.org to baby-api
+      - name: Insert /vault routing into existing dominionhealing.org block
         uses: appleboy/ssh-action@v1.2.0
         with:
           host: ${{ secrets.VM_HOST }}
@@ -18,15 +18,9 @@ jobs:
             CADDYFILE=/etc/caddy/Caddyfile
 
             echo "=============================="
-            echo "  CURRENT CADDYFILE"
+            echo "  ALREADY PATCHED CHECK"
             echo "=============================="
-            cat "$CADDYFILE"
-            echo ""
-
-            echo "=============================="
-            echo "  CHECK IF ALREADY PATCHED"
-            echo "=============================="
-            if grep -q "handle /vault" "$CADDYFILE" 2>/dev/null; then
+            if grep -q "@vault_path" "$CADDYFILE" 2>/dev/null; then
               echo "ALREADY PATCHED — done"
               curl -sf http://localhost:8080/vault/health | python3 -m json.tool 2>/dev/null || true
               exit 0
@@ -34,48 +28,32 @@ jobs:
 
             echo ""
             echo "=============================="
-            echo "  PATCH CADDYFILE"
+            echo "  CURRENT ROOT BLOCK"
             echo "=============================="
+            grep -n "dominionhealing.org\|root \*\|file_server\|@vault" "$CADDYFILE" | head -30
 
-            if grep -qP "^dominionhealing\.org\s*\{" "$CADDYFILE" 2>/dev/null; then
-              echo "Root block exists — patching with awk"
-              awk '/^dominionhealing\.org[[:space:]]*\{$/ {
-                in_root=1; print; next
-              }
-              in_root && /reverse_proxy/ && !patched {
-                print "  handle /vault* {";
-                print "    reverse_proxy 127.0.0.1:8080";
-                print "  }";
-                print "  handle /health {";
-                print "    reverse_proxy 127.0.0.1:8080";
-                print "  }";
-                print "  handle {";
-                patched=1; in_handle=1
-              }
-              in_root && /^\}/ && in_handle {
-                print "  }"; in_handle=0; in_root=0; patched=0; print; next
-              }
-              { print }' "$CADDYFILE" > /tmp/Caddyfile.patched
-            else
-              echo "No root block — appending new vault block"
-              cp "$CADDYFILE" /tmp/Caddyfile.patched
-              printf '\ndominionhealing.org {\n  encode gzip zstd\n  handle /vault* {\n    reverse_proxy 127.0.0.1:8080\n  }\n  handle /health {\n    reverse_proxy 127.0.0.1:8080\n  }\n}\n' >> /tmp/Caddyfile.patched
-            fi
+            echo ""
+            echo "=============================="
+            echo "  PATCH: INSERT VAULT BEFORE root * LINE"
+            echo "=============================="
+            cp "$CADDYFILE" /tmp/Caddyfile.bak
+            sudo sed -i 's|  root \* /home/|  @vault_path {\n    path /vault /vault/ /vault/*\n  }\n  reverse_proxy @vault_path 127.0.0.1:8080\n\n  root * /home/|' "$CADDYFILE"
 
             echo ""
             echo "=============================="
             echo "  DIFF"
             echo "=============================="
-            diff "$CADDYFILE" /tmp/Caddyfile.patched || true
+            diff /tmp/Caddyfile.bak "$CADDYFILE" || true
 
             echo ""
             echo "=============================="
-            echo "  APPLY + RELOAD CADDY"
+            echo "  RELOAD CADDY"
             echo "=============================="
-            sudo cp /tmp/Caddyfile.patched "$CADDYFILE"
             sudo systemctl reload caddy && echo "Caddy reloaded OK" || {
-              echo "ERROR — Caddy status:"
-              sudo systemctl status caddy | tail -20
+              echo "RELOAD FAILED — restoring backup"
+              sudo cp /tmp/Caddyfile.bak "$CADDYFILE"
+              sudo systemctl reload caddy
+              echo "Restored original — check logs above for Caddy error"
               exit 1
             }
 
