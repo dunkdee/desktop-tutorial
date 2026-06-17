@@ -7,7 +7,7 @@ jobs:
   patch-caddy:
     runs-on: ubuntu-latest
     steps:
-      - name: Insert /vault routing into existing dominionhealing.org block
+      - name: Remove duplicate dominionhealing.org block and reload Caddy
         uses: appleboy/ssh-action@v1.2.0
         with:
           host: ${{ secrets.VM_HOST }}
@@ -18,42 +18,47 @@ jobs:
             CADDYFILE=/etc/caddy/Caddyfile
 
             echo "=============================="
-            echo "  ALREADY PATCHED CHECK"
+            echo "  CURRENT CADDYFILE (key lines)"
             echo "=============================="
-            if grep -q "@vault_path" "$CADDYFILE" 2>/dev/null; then
-              echo "ALREADY PATCHED — done"
-              curl -sf http://localhost:8080/vault/health | python3 -m json.tool 2>/dev/null || true
-              exit 0
+            grep -n "dominionhealing.org\|vault\|@vault" "$CADDYFILE" | head -40
+
+            echo ""
+            echo "=============================="
+            echo "  CHECK FOR DUPLICATE BLOCK"
+            echo "=============================="
+            DUP_LINE=$(grep -n "^dominionhealing\.org {" "$CADDYFILE" | tail -1 | cut -d: -f1)
+            if [ -z "$DUP_LINE" ]; then
+              echo "No duplicate simple block found"
+            else
+              echo "Duplicate block at line $DUP_LINE — removing it"
+              cp "$CADDYFILE" /tmp/Caddyfile.bak2
+              head -n $((DUP_LINE - 2)) "$CADDYFILE" > /tmp/Caddyfile.fixed
+              echo "" >> /tmp/Caddyfile.fixed
+              echo "--- After removing duplicate ---"
+              grep -n "dominionhealing.org\|vault" /tmp/Caddyfile.fixed | head -20
+              sudo cp /tmp/Caddyfile.fixed "$CADDYFILE"
+              echo "Applied fix"
             fi
 
             echo ""
             echo "=============================="
-            echo "  CURRENT ROOT BLOCK"
+            echo "  CONFIRM VAULT PATH IN BLOCK"
             echo "=============================="
-            grep -n "dominionhealing.org\|root \*\|file_server\|@vault" "$CADDYFILE" | head -30
-
-            echo ""
-            echo "=============================="
-            echo "  PATCH: INSERT VAULT BEFORE root * LINE"
-            echo "=============================="
-            cp "$CADDYFILE" /tmp/Caddyfile.bak
-            sudo sed -i 's|  root \* /home/|  @vault_path {\n    path /vault /vault/ /vault/*\n  }\n  reverse_proxy @vault_path 127.0.0.1:8080\n\n  root * /home/|' "$CADDYFILE"
-
-            echo ""
-            echo "=============================="
-            echo "  DIFF"
-            echo "=============================="
-            diff /tmp/Caddyfile.bak "$CADDYFILE" || true
+            if grep -q "@vault_path" "$CADDYFILE"; then
+              echo "OK — @vault_path already in Caddyfile"
+            else
+              echo "Vault path not found — inserting before root * line"
+              sudo sed -i 's|  root \* /home/|  @vault_path {\n    path /vault /vault/ /vault/*\n  }\n  reverse_proxy @vault_path 127.0.0.1:8080\n\n  root * /home/|' "$CADDYFILE"
+              echo "Inserted vault routing"
+            fi
 
             echo ""
             echo "=============================="
             echo "  RELOAD CADDY"
             echo "=============================="
             sudo systemctl reload caddy && echo "Caddy reloaded OK" || {
-              echo "RELOAD FAILED — restoring backup"
-              sudo cp /tmp/Caddyfile.bak "$CADDYFILE"
-              sudo systemctl reload caddy
-              echo "Restored original — check logs above for Caddy error"
+              echo "RELOAD FAILED — Caddy error:"
+              sudo caddy validate --config "$CADDYFILE" 2>&1 | tail -10
               exit 1
             }
 
@@ -62,8 +67,8 @@ jobs:
             echo "  VERIFY"
             echo "=============================="
             sleep 2
-            curl -sf http://localhost:8080/vault/health | python3 -m json.tool 2>/dev/null || echo "(vault health via direct port)"
+            curl -sf http://localhost:8080/vault/health | python3 -m json.tool 2>/dev/null || echo "(vault health via direct port OK)"
             echo ""
             sudo systemctl is-active caddy
             echo ""
-            echo "DONE: https://dominionhealing.org/vault/health"
+            echo "DONE — vault is at: https://dominionhealing.org/vault/health"
