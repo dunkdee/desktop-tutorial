@@ -36,16 +36,43 @@ services:
     command: ["sh", "-c", "while true; do echo '👑 Baby heartbeat: empire integrations running'; sleep 30; done"]
     restart: always
 
+  dominion-vg:
+    build: ./apps/dominion-vg
+    container_name: dominion-vg
+    ports:
+      - "8002:8002"
+    restart: always
+    environment:
+      DVG_PUBLIC_URL: ${DVG_PUBLIC_URL:-http://localhost:8002}
+      DVG_OUTPUT_DIR: /data/videos
+    volumes:
+      - dvg_videos:/data/videos
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: all
+              capabilities: [gpu]
+    healthcheck:
+      test: ["CMD-SHELL", "curl -sf http://localhost:8002/healthz || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
+
   movie-generator:
     build: ./apps/youtube
     container_name: movie-generator
     ports:
       - "8001:8000"
     restart: always
+    depends_on:
+      - dominion-vg
     environment:
       ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY}
       HIGGINS_API_KEY: ${HIGGINS_API_KEY}
-      RUNWAY_API_KEY: ${RUNWAY_API_KEY}
+      DVG_URL: http://dominion-vg:8002
       YOUTUBE_CLIENT_ID: ${YOUTUBE_CLIENT_ID}
       YOUTUBE_CLIENT_SECRET: ${YOUTUBE_CLIENT_SECRET}
       YOUTUBE_REDIRECT_URI: ${YOUTUBE_REDIRECT_URI}
@@ -67,3 +94,4 @@ services:
 
 volumes:
   movie_tmp:
+  dvg_videos:
