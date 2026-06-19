@@ -1,4 +1,5 @@
-from fastapi import FastAPI, BackgroundTasks, HTTPException, Security
+from fastapi import FastAPI, BackgroundTasks, HTTPException, Security, Request
+from fastapi.responses import JSONResponse
 from fastapi.security import APIKeyHeader
 from pydantic import BaseModel
 import os
@@ -9,6 +10,11 @@ from pipeline import run_pipeline, PipelineResult
 from youtube_uploader import get_oauth_url, exchange_code
 
 app = FastAPI(title="Higgins Movie Generator", description="Claude Fable 5 → YouTube")
+
+
+@app.exception_handler(Exception)
+async def global_error_handler(request: Request, exc: Exception):
+    return JSONResponse(status_code=500, content={"error": type(exc).__name__, "detail": str(exc)})
 
 _api_key_header = APIKeyHeader(name="X-Higgins-Key", auto_error=True)
 _jobs: dict[str, PipelineResult] = {}
