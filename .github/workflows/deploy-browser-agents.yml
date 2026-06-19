@@ -1,0 +1,68 @@
+name: Deploy Browser Agents
+
+on:
+  workflow_dispatch:
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Deploy browser-agents container to VM
+        uses: appleboy/ssh-action@v1.2.0
+        with:
+          host: ${{ secrets.VM_HOST }}
+          username: ${{ secrets.VM_USER }}
+          key: ${{ secrets.VM_SSH_KEY }}
+          command_timeout: 15m
+          script: |
+            cd ~/desktop-tutorial
+
+            echo "=============================="
+            echo "  GIT PULL"
+            echo "=============================="
+            git pull origin main
+
+            echo ""
+            echo "=============================="
+            echo "  WRITE SOCIAL CREDS TO .env"
+            echo "=============================="
+            set_env() {
+              local key=$1 val=$2
+              if [ -n "$val" ]; then
+                grep -v "^${key}=" .env > .env.tmp && mv .env.tmp .env
+                echo "${key}=${val}" >> .env
+                echo "SET: $key"
+              else
+                echo "SKIP (empty): $key"
+              fi
+            }
+
+            set_env "TIKTOK_USERNAME" "${{ secrets.TIKTOK_USERNAME }}"
+            set_env "TIKTOK_PASSWORD" "${{ secrets.TIKTOK_PASSWORD }}"
+            set_env "INSTAGRAM_USERNAME" "${{ secrets.INSTAGRAM_USERNAME }}"
+            set_env "INSTAGRAM_PASSWORD" "${{ secrets.INSTAGRAM_PASSWORD }}"
+            set_env "TWITTER_USERNAME" "${{ secrets.TWITTER_USERNAME }}"
+            set_env "TWITTER_PASSWORD" "${{ secrets.TWITTER_PASSWORD }}"
+            set_env "PPH_USERNAME" "${{ secrets.PPH_USERNAME }}"
+            set_env "PPH_PASSWORD" "${{ secrets.PPH_PASSWORD }}"
+
+            echo ""
+            echo "=============================="
+            echo "  BUILD + START BROWSER AGENTS"
+            echo "=============================="
+            docker compose up -d --build browser-agents
+            echo "Build complete — waiting 30s for startup..."
+            sleep 30
+
+            echo ""
+            echo "=============================="
+            echo "  HEALTH CHECK"
+            echo "=============================="
+            curl -sf http://localhost:8081/health | python3 -m json.tool 2>/dev/null || echo "NOT RESPONDING yet"
+            echo ""
+            docker ps --filter "name=browser-agents" --format "table {{.Names}}\t{{.Status}}"
+            echo ""
+            echo "DONE — browser agents at http://localhost:8081"
+            echo ""
+            echo "Test with:"
+            echo "  curl -X POST http://localhost:8081/run -H 'Content-Type: application/json' -d '{\"task\":\"browse_test\"}'"

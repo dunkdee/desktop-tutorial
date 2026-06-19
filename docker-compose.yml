@@ -44,6 +44,35 @@ services:
     command: ["sh", "-c", "while true; do echo 'Baby heartbeat: empire integrations running'; sleep 30; done"]
     restart: always
 
+  browser-agents:
+    build: ./apps/browser-agents
+    container_name: browser-agents
+    ports:
+      - "8081:8000"
+    shm_size: '2gb'
+    restart: unless-stopped
+    environment:
+      ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY}
+      TIKTOK_USERNAME: ${TIKTOK_USERNAME}
+      TIKTOK_PASSWORD: ${TIKTOK_PASSWORD}
+      TIKTOK_CLIENT_ID: ${TIKTOK_CLIENT_ID}
+      TIKTOK_CLIENT_SECRET: ${TIKTOK_CLIENT_SECRET}
+      INSTAGRAM_USERNAME: ${INSTAGRAM_USERNAME}
+      INSTAGRAM_PASSWORD: ${INSTAGRAM_PASSWORD}
+      TWITTER_USERNAME: ${TWITTER_USERNAME}
+      TWITTER_PASSWORD: ${TWITTER_PASSWORD}
+      PPH_USERNAME: ${PPH_USERNAME}
+      PPH_PASSWORD: ${PPH_PASSWORD}
+      BABY_API_URL: http://baby-api:8080
+      PPH_MAX_PROPOSALS_PER_RUN: ${PPH_MAX_PROPOSALS_PER_RUN:-3}
+      PPH_MIN_BUDGET: ${PPH_MIN_BUDGET:-50}
+    healthcheck:
+      test: ["CMD-SHELL", "curl -sf http://localhost:8000/health || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
+
   dominion-web:
     build: ./web
     container_name: dominion-web
