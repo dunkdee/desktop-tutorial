@@ -1,4 +1,4 @@
-name: Deploy Dominion Video Generator to GCP
+name: Build & Push Dominion Video Generator Images
 
 on:
   workflow_dispatch:
@@ -13,13 +13,9 @@ env:
   REGION: ${{ secrets.GCP_REGION }}
   AR_HOST: ${{ secrets.GCP_REGION }}-docker.pkg.dev
   AR_REPO: dominion
-  API_IMAGE: dominion-vg-api
-  WORKER_IMAGE: dominion-vg-worker
-  API_SERVICE: dominion-vg-api
-  WORKER_SERVICE: dominion-vg-worker
 
 jobs:
-  build-and-deploy:
+  build-and-push:
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -39,15 +35,6 @@ jobs:
         with:
           project_id: ${{ secrets.GCP_PROJECT_ID }}
 
-      - name: Enable required GCP APIs
-        run: |
-          gcloud services enable \
-            run.googleapis.com \
-            artifactregistry.googleapis.com \
-            secretmanager.googleapis.com \
-            redis.googleapis.com \
-            --project ${{ env.PROJECT_ID }} --quiet
-
       - name: Auth Docker to Artifact Registry
         run: gcloud auth configure-docker ${{ env.AR_HOST }} --quiet
 
@@ -60,99 +47,48 @@ jobs:
                --location="${{ env.REGION }}" \
                --description="Dominion Empire images"
 
-      - name: Build & push DVG API image
+      - name: Build & push DVG image
         run: |
-          IMAGE="${{ env.AR_HOST }}/${{ env.PROJECT_ID }}/${{ env.AR_REPO }}/${{ env.API_IMAGE }}:latest"
+          IMAGE="${{ env.AR_HOST }}/${{ env.PROJECT_ID }}/${{ env.AR_REPO }}/dominion-vg:latest"
           docker build -f apps/dominion-vg/Dockerfile -t "$IMAGE" apps/dominion-vg
           docker push "$IMAGE"
 
-      - name: Build & push DVG Worker image
-        run: |
-          IMAGE="${{ env.AR_HOST }}/${{ env.PROJECT_ID }}/${{ env.AR_REPO }}/${{ env.WORKER_IMAGE }}:latest"
-          docker build -f apps/dominion-vg/Dockerfile -t "$IMAGE" apps/dominion-vg
-          docker push "$IMAGE"
+      - name: Deploy to VM via SSH
+        uses: appleboy/ssh-action@v0.1.10
+        with:
+          host: ${{ secrets.VM_HOST }}
+          username: ${{ secrets.VM_USER }}
+          key: ${{ secrets.VM_SSH_KEY }}
+          script: |
+            set -e
+            cd ~/desktop-tutorial
+            git fetch --all
+            git checkout claude/movie-generator-youtube-b50wx2
+            git reset --hard origin/claude/movie-generator-youtube-b50wx2
 
-      - name: Provision Redis (Memorystore) if not exists
-        run: |
-          INSTANCE=dominion-redis
-          EXISTS=$(gcloud redis instances list \
-            --region=${{ env.REGION }} \
-            --filter="name:$INSTANCE" \
-            --format="value(name)" 2>/dev/null || true)
-          if [ -z "$EXISTS" ]; then
-            echo "Creating Redis instance..."
-            gcloud redis instances create $INSTANCE \
-              --size=1 \
-              --region=${{ env.REGION }} \
-              --redis-version=redis_7_0 \
-              --tier=basic \
-              --project=${{ env.PROJECT_ID }}
-          else
-            echo "Redis already exists."
-          fi
-          REDIS_IP=$(gcloud redis instances describe $INSTANCE \
-            --region=${{ env.REGION }} \
-            --format="value(host)" \
-            --project=${{ env.PROJECT_ID }})
-          echo "REDIS_URL=redis://$REDIS_IP:6379/2" >> $GITHUB_ENV
-          echo "REDIS_IP=$REDIS_IP" >> $GITHUB_ENV
+            export NVIDIA_NIM_API_KEY="${{ secrets.NVIDIA_NIM_API_KEY }}"
+            export ANTHROPIC_API_KEY="${{ secrets.ANTHROPIC_API_KEY }}"
+            export HIGGINS_API_KEY="${{ secrets.HIGGINS_SERVICE_KEY }}"
+            export DVG_PUBLIC_URL="http://${{ secrets.VM_HOST }}:8002"
+            export YOUTUBE_CLIENT_ID="${{ secrets.YOUTUBE_CLIENT_ID }}"
+            export YOUTUBE_CLIENT_SECRET="${{ secrets.YOUTUBE_CLIENT_SECRET }}"
+            export YOUTUBE_REDIRECT_URI="${{ secrets.YOUTUBE_REDIRECT_URI }}"
 
-      - name: Deploy DVG API to Cloud Run (CPU)
-        run: |
-          IMAGE="${{ env.AR_HOST }}/${{ env.PROJECT_ID }}/${{ env.AR_REPO }}/${{ env.API_IMAGE }}:latest"
-          gcloud run deploy ${{ env.API_SERVICE }} \
-            --image "$IMAGE" \
-            --command "uvicorn" \
-            --args "api:app,--host,0.0.0.0,--port,8002" \
-            --region ${{ env.REGION }} \
-            --platform managed \
-            --allow-unauthenticated \
-            --port 8002 \
-            --memory 2Gi \
-            --cpu 2 \
-            --min-instances 1 \
-            --max-instances 3 \
-            --set-env-vars "REDIS_URL=${{ env.REDIS_URL }},DVG_OUTPUT_DIR=/tmp/videos,DVG_PUBLIC_URL=https://dominion-vg-api-${{ env.PROJECT_ID }}.run.app" \
-            --project ${{ env.PROJECT_ID }}
+            docker compose up -d --build redis dominion-vg-api dominion-vg-worker movie-generator
 
-      - name: Get API URL
-        run: |
-          API_URL=$(gcloud run services describe ${{ env.API_SERVICE }} \
-            --region ${{ env.REGION }} \
-            --format "value(status.url)" \
-            --project ${{ env.PROJECT_ID }})
-          echo "DVG_API_URL=$API_URL" >> $GITHUB_ENV
-          echo "Dominion VG API deployed at: $API_URL"
-
-      - name: Deploy DVG Worker to Cloud Run (CPU — GPU runs on NVIDIA)
-        run: |
-          IMAGE="${{ env.AR_HOST }}/${{ env.PROJECT_ID }}/${{ env.AR_REPO }}/${{ env.WORKER_IMAGE }}:latest"
-          gcloud run deploy ${{ env.WORKER_SERVICE }} \
-            --image "$IMAGE" \
-            --command "python" \
-            --args "worker.py" \
-            --region ${{ env.REGION }} \
-            --platform managed \
-            --no-allow-unauthenticated \
-            --port 8080 \
-            --memory 2Gi \
-            --cpu 2 \
-            --min-instances 0 \
-            --max-instances 4 \
-            --timeout 3600 \
-            --set-env-vars "REDIS_URL=${{ env.REDIS_URL }},DVG_OUTPUT_DIR=/tmp/videos,DVG_PUBLIC_URL=${{ env.DVG_API_URL }},NVIDIA_NIM_API_KEY=${{ secrets.NVIDIA_NIM_API_KEY }}" \
-            --project ${{ env.PROJECT_ID }}
+            echo "Waiting for services..."
+            sleep 10
+            curl -sf http://localhost:8002/healthz && echo "Dominion VG: UP"
+            curl -sf http://localhost:8001/healthz && echo "Higgins: UP"
 
       - name: Summary
         run: |
-          echo "========================================"
-          echo "  Dominion Video Generator — LIVE"
-          echo "========================================"
-          echo "  API:    ${{ env.DVG_API_URL }}"
-          echo "  GPU:    NVIDIA L4 (24GB) via Cloud Run"
-          echo "  Model:  HunyuanVideo"
-          echo "  Redis:  ${{ env.REDIS_IP }}:6379"
-          echo ""
-          echo "  Set this in Higgins secrets:"
-          echo "  DVG_URL=${{ env.DVG_API_URL }}"
-          echo "========================================"
+          echo "=================================="
+          echo " Dominion Video Generator — LIVE"
+          echo "=================================="
+          echo " Cost: $0/month"
+          echo " Video: NVIDIA Cosmos (free credits)"
+          echo " Script: Claude Fable 5 (pay per use only)"
+          echo " Redis: Local container (free)"
+          echo " Host: Your existing VM (already paid)"
+          echo "=================================="

@@ -33,52 +33,10 @@ services:
   baby-logger:
     image: alpine:latest
     container_name: baby-logger
-    command: ["sh", "-c", "while true; do echo '👑 Baby heartbeat: empire integrations running'; sleep 30; done"]
+    command: ["sh", "-c", "while true; do echo 'Dominion heartbeat'; sleep 30; done"]
     restart: always
 
-  dominion-vg-api:
-    build: ./apps/dominion-vg
-    container_name: dominion-vg-api
-    command: uvicorn api:app --host 0.0.0.0 --port 8002
-    ports:
-      - "8002:8002"
-    restart: always
-    environment:
-      REDIS_URL: redis://redis:6379/2
-      DVG_PUBLIC_URL: ${DVG_PUBLIC_URL:-http://localhost:8002}
-      DVG_OUTPUT_DIR: /data/videos
-    volumes:
-      - dvg_videos:/data/videos
-    depends_on:
-      - redis
-    healthcheck:
-      test: ["CMD-SHELL", "curl -sf http://localhost:8002/healthz || exit 1"]
-      interval: 30s
-      timeout: 10s
-      retries: 3
-      start_period: 15s
-
-  dominion-vg-worker:
-    build: ./apps/dominion-vg
-    container_name: dominion-vg-worker
-    command: python worker.py
-    restart: always
-    environment:
-      REDIS_URL: redis://redis:6379/2
-      DVG_PUBLIC_URL: ${DVG_PUBLIC_URL:-http://localhost:8002}
-      DVG_OUTPUT_DIR: /data/videos
-    volumes:
-      - dvg_videos:/data/videos
-    depends_on:
-      - redis
-    deploy:
-      resources:
-        reservations:
-          devices:
-            - driver: nvidia
-              count: all
-              capabilities: [gpu]
-
+  # Free Redis — runs on your existing VM, zero extra cost
   redis:
     image: redis:7-alpine
     container_name: redis
@@ -86,6 +44,46 @@ services:
     volumes:
       - redis_data:/data
 
+  # Dominion Video Generator API — accepts jobs, returns status
+  dominion-vg-api:
+    build: ./apps/dominion-vg
+    container_name: dominion-vg-api
+    command: uvicorn api:app --host 0.0.0.0 --port 8002
+    ports:
+      - "8002:8002"
+    restart: always
+    depends_on:
+      - redis
+    environment:
+      REDIS_URL: redis://redis:6379/2
+      DVG_PUBLIC_URL: ${DVG_PUBLIC_URL:-http://localhost:8002}
+      DVG_OUTPUT_DIR: /data/videos
+    volumes:
+      - dvg_videos:/data/videos
+    healthcheck:
+      test: ["CMD-SHELL", "curl -sf http://localhost:8002/healthz || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 10s
+
+  # Dominion Video Generator Worker — calls NVIDIA Cosmos free API
+  dominion-vg-worker:
+    build: ./apps/dominion-vg
+    container_name: dominion-vg-worker
+    command: python worker.py
+    restart: always
+    depends_on:
+      - redis
+    environment:
+      REDIS_URL: redis://redis:6379/2
+      DVG_PUBLIC_URL: ${DVG_PUBLIC_URL:-http://localhost:8002}
+      DVG_OUTPUT_DIR: /data/videos
+      NVIDIA_NIM_API_KEY: ${NVIDIA_NIM_API_KEY}
+    volumes:
+      - dvg_videos:/data/videos
+
+  # Higgins — script writer + pipeline orchestrator
   movie-generator:
     build: ./apps/youtube
     container_name: movie-generator
