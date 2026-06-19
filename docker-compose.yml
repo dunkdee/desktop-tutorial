@@ -36,17 +36,41 @@ services:
     command: ["sh", "-c", "while true; do echo '👑 Baby heartbeat: empire integrations running'; sleep 30; done"]
     restart: always
 
-  dominion-vg:
+  dominion-vg-api:
     build: ./apps/dominion-vg
-    container_name: dominion-vg
+    container_name: dominion-vg-api
+    command: uvicorn api:app --host 0.0.0.0 --port 8002
     ports:
       - "8002:8002"
     restart: always
     environment:
+      REDIS_URL: redis://redis:6379/2
       DVG_PUBLIC_URL: ${DVG_PUBLIC_URL:-http://localhost:8002}
       DVG_OUTPUT_DIR: /data/videos
     volumes:
       - dvg_videos:/data/videos
+    depends_on:
+      - redis
+    healthcheck:
+      test: ["CMD-SHELL", "curl -sf http://localhost:8002/healthz || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 15s
+
+  dominion-vg-worker:
+    build: ./apps/dominion-vg
+    container_name: dominion-vg-worker
+    command: python worker.py
+    restart: always
+    environment:
+      REDIS_URL: redis://redis:6379/2
+      DVG_PUBLIC_URL: ${DVG_PUBLIC_URL:-http://localhost:8002}
+      DVG_OUTPUT_DIR: /data/videos
+    volumes:
+      - dvg_videos:/data/videos
+    depends_on:
+      - redis
     deploy:
       resources:
         reservations:
@@ -54,12 +78,13 @@ services:
             - driver: nvidia
               count: all
               capabilities: [gpu]
-    healthcheck:
-      test: ["CMD-SHELL", "curl -sf http://localhost:8002/healthz || exit 1"]
-      interval: 30s
-      timeout: 10s
-      retries: 3
-      start_period: 60s
+
+  redis:
+    image: redis:7-alpine
+    container_name: redis
+    restart: always
+    volumes:
+      - redis_data:/data
 
   movie-generator:
     build: ./apps/youtube
@@ -68,11 +93,11 @@ services:
       - "8001:8000"
     restart: always
     depends_on:
-      - dominion-vg
+      - dominion-vg-api
     environment:
       ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY}
       HIGGINS_API_KEY: ${HIGGINS_API_KEY}
-      DVG_URL: http://dominion-vg:8002
+      DVG_URL: http://dominion-vg-api:8002
       YOUTUBE_CLIENT_ID: ${YOUTUBE_CLIENT_ID}
       YOUTUBE_CLIENT_SECRET: ${YOUTUBE_CLIENT_SECRET}
       YOUTUBE_REDIRECT_URI: ${YOUTUBE_REDIRECT_URI}
@@ -95,3 +120,4 @@ services:
 volumes:
   movie_tmp:
   dvg_videos:
+  redis_data:
