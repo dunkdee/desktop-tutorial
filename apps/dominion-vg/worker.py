@@ -1,7 +1,7 @@
 """
-Dominion Video Generator — GPU Worker
-Runs separately from the API so the GPU process is isolated.
-Pulls jobs from Redis, generates video, posts result back.
+Dominion Video Generator — Worker
+Pulls jobs from Redis, generates via NVIDIA Cosmos NIM, post-processes, saves.
+No GPU required on your server — NVIDIA runs it on their H100s.
 """
 import os
 import json
@@ -10,7 +10,7 @@ import signal
 import traceback
 import redis
 from pathlib import Path
-from models.hunyuan import generate
+from models.cosmos import generate
 from postprocess import full_pipeline
 
 REDIS_URL = os.getenv("REDIS_URL", "redis://redis:6379/2")
@@ -26,7 +26,7 @@ _running = True
 
 def _signal_handler(sig, frame):
     global _running
-    print("[worker] Shutdown signal received")
+    print("[worker] Shutting down...")
     _running = False
 
 
@@ -36,25 +36,24 @@ signal.signal(signal.SIGINT, _signal_handler)
 
 def process_job(job: dict):
     job_id = job["job_id"]
-    print(f"[worker] Processing job {job_id}: {job['prompt'][:60]}...")
-
+    print(f"[worker] Job {job_id}: {job['prompt'][:60]}...")
     r.hset(JOBS_KEY, job_id, json.dumps({**job, "status": "processing"}))
 
     try:
         raw_path = str(OUTPUT_DIR / f"{job_id}_raw.mp4")
         final_path = str(OUTPUT_DIR / f"{job_id}.mp4")
 
+        # Generate via NVIDIA Cosmos
         generate(
             prompt=job["prompt"],
             duration_seconds=job.get("duration_seconds", 5),
             width=job.get("width", 1280),
             height=job.get("height", 720),
-            fps=24,
-            guidance_scale=job.get("guidance_scale", 6.0),
-            seed=job.get("seed", -1),
+            quality=job.get("quality", "elite"),
             output_path=raw_path,
         )
 
+        # Post-process: color grade → 60fps → 1080p
         full_pipeline(
             input_path=raw_path,
             output_path=final_path,
@@ -70,13 +69,11 @@ def process_job(job: dict):
             **job,
             "status": "completed",
             "video_url": video_url,
-            "path": final_path,
         }))
-        print(f"[worker] Job {job_id} complete → {video_url}")
+        print(f"[worker] Done → {video_url}")
 
     except Exception as e:
-        err = traceback.format_exc()
-        print(f"[worker] Job {job_id} FAILED:\n{err}")
+        print(f"[worker] FAILED: {traceback.format_exc()}")
         r.hset(JOBS_KEY, job_id, json.dumps({
             **job,
             "status": "failed",
@@ -86,23 +83,20 @@ def process_job(job: dict):
 
 def run():
     print("[worker] Dominion Video Generator worker online.")
-    print(f"[worker] Redis: {REDIS_URL} | Output: {OUTPUT_DIR}")
+    print(f"[worker] Model: NVIDIA Cosmos via NIM API")
 
     while _running:
         try:
             item = r.blpop(QUEUE_KEY, timeout=5)
             if item:
                 _, raw = item
-                job = json.loads(raw)
-                process_job(job)
+                process_job(json.loads(raw))
         except redis.exceptions.ConnectionError:
-            print("[worker] Redis connection lost, retrying in 5s...")
+            print("[worker] Redis disconnected, retrying in 5s...")
             time.sleep(5)
         except Exception as e:
-            print(f"[worker] Unexpected error: {e}")
+            print(f"[worker] Error: {e}")
             time.sleep(2)
-
-    print("[worker] Shutdown complete.")
 
 
 if __name__ == "__main__":

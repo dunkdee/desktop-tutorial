@@ -124,7 +124,7 @@ jobs:
           echo "DVG_API_URL=$API_URL" >> $GITHUB_ENV
           echo "Dominion VG API deployed at: $API_URL"
 
-      - name: Deploy DVG Worker to Cloud Run (L4 GPU)
+      - name: Deploy DVG Worker to Cloud Run (CPU — GPU runs on NVIDIA)
         run: |
           IMAGE="${{ env.AR_HOST }}/${{ env.PROJECT_ID }}/${{ env.AR_REPO }}/${{ env.WORKER_IMAGE }}:latest"
           gcloud run deploy ${{ env.WORKER_SERVICE }} \
@@ -135,14 +135,12 @@ jobs:
             --platform managed \
             --no-allow-unauthenticated \
             --port 8080 \
-            --memory 24Gi \
-            --cpu 8 \
-            --gpu 1 \
-            --gpu-type nvidia-l4 \
+            --memory 2Gi \
+            --cpu 2 \
             --min-instances 0 \
             --max-instances 4 \
             --timeout 3600 \
-            --set-env-vars "REDIS_URL=${{ env.REDIS_URL }},DVG_OUTPUT_DIR=/tmp/videos,DVG_PUBLIC_URL=${{ env.DVG_API_URL }}" \
+            --set-env-vars "REDIS_URL=${{ env.REDIS_URL }},DVG_OUTPUT_DIR=/tmp/videos,DVG_PUBLIC_URL=${{ env.DVG_API_URL }},NVIDIA_NIM_API_KEY=${{ secrets.NVIDIA_NIM_API_KEY }}" \
             --project ${{ env.PROJECT_ID }}
 
       - name: Summary
