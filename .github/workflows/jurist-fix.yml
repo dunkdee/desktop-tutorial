@@ -1,0 +1,73 @@
+name: Jurist Fix — Debug Service + Force Sync baby-api
+
+on:
+  workflow_dispatch:
+
+jobs:
+  fix:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Fix Jurist service + force-sync baby-api
+        uses: appleboy/ssh-action@v1.2.0
+        with:
+          host: ${{ secrets.VM_HOST }}
+          username: ${{ secrets.VM_USER }}
+          key: ${{ secrets.VM_SSH_KEY }}
+          command_timeout: 5m
+          script: |
+            echo "=============================="
+            echo "  JURIST SERVICE ERROR LOGS"
+            echo "=============================="
+            journalctl -u dominion-juris -n 30 --no-pager 2>/dev/null || true
+
+            echo ""
+            echo "=============================="
+            echo "  CHECK PYTHON DEPS FOR JURIST"
+            echo "=============================="
+            python3 -c "import dotenv; print('dotenv OK')" 2>/dev/null || echo "python-dotenv missing"
+            python3 -c "import http.server; print('http.server OK')" 2>/dev/null
+            python3 -c "import sys; sys.path.insert(0, '/home/$USER/buddy_core'); from core.juris_protocol import JurisProtocol; print('JurisProtocol OK')" 2>/dev/null || echo "JurisProtocol import failed"
+
+            echo ""
+            echo "=============================="
+            echo "  INSTALL MISSING DEPS IF NEEDED"
+            echo "=============================="
+            pip3 install python-dotenv requests 2>/dev/null | tail -3
+
+            echo ""
+            echo "=============================="
+            echo "  RESTART JURIST SERVICE"
+            echo "=============================="
+            sudo systemctl restart dominion-juris
+            sleep 4
+            sudo systemctl status dominion-juris --no-pager
+
+            echo ""
+            echo "=============================="
+            echo "  FORCE-SYNC desktop-tutorial"
+            echo "=============================="
+            cd ~/desktop-tutorial
+            git fetch origin
+            git reset --hard origin/main
+            echo "Sync complete. app.py head:"
+            head -5 api/app.py
+            grep -n "ask/juris" api/app.py && echo "-> /ask/juris endpoint is in app.py" || echo "-> NOT found in app.py"
+
+            echo ""
+            echo "=============================="
+            echo "  REBUILD + RESTART BABY-API"
+            echo "=============================="
+            cd ~/desktop-tutorial && docker compose up -d --build baby-api
+            echo "Waiting 20s..."
+            sleep 20
+
+            echo ""
+            echo "=============================="
+            echo "  TEST /ask/juris ENDPOINT"
+            echo "=============================="
+            curl -s http://localhost:8080/ask/juris \
+              | python3 -m json.tool 2>/dev/null \
+              || echo "curl failed or bad JSON"
+
+            echo ""
+            echo "FIX COMPLETE"
