@@ -1,0 +1,113 @@
+name: Jurist Full Audit
+
+on:
+  workflow_dispatch:
+
+jobs:
+  audit:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Pull Jurist code from VM
+        uses: appleboy/ssh-action@v1.2.0
+        with:
+          host: ${{ secrets.VM_HOST }}
+          username: ${{ secrets.VM_USER }}
+          key: ${{ secrets.VM_SSH_KEY }}
+          command_timeout: 5m
+          script: |
+            echo "=============================="
+            echo "  JURIST — FIND ALL FILES"
+            echo "=============================="
+            find ~ -maxdepth 6 \
+              \( -iname "*juris*" -o -iname "*jurist*" \) \
+              -not -path "*/site-packages/*" \
+              -not -path "*/lib/python*" \
+              -not -path "*/__pycache__/*" \
+              -not -path "*/.git/*" 2>/dev/null | sort
+
+            echo ""
+            echo "=============================="
+            echo "  JURIST SYSTEMD SERVICE FILE"
+            echo "=============================="
+            cat /etc/systemd/system/dominion-juris.service 2>/dev/null \
+              || cat /etc/systemd/system/juris.service 2>/dev/null \
+              || systemctl cat dominion-juris 2>/dev/null \
+              || echo "No systemd service found"
+
+            echo ""
+            echo "=============================="
+            echo "  JURIST SERVICE STATUS"
+            echo "=============================="
+            systemctl status dominion-juris 2>/dev/null \
+              || systemctl status juris 2>/dev/null \
+              || echo "Service not found via systemctl"
+
+            echo ""
+            echo "=============================="
+            echo "  ~/dominion/juris/ DIRECTORY"
+            echo "=============================="
+            ls -la ~/dominion/juris/ 2>/dev/null || echo "NOT FOUND at ~/dominion/juris/"
+
+            echo ""
+            echo "=============================="
+            echo "  JURIST MAIN APP FILE"
+            echo "=============================="
+            cat ~/dominion/juris/app.py 2>/dev/null \
+              || cat ~/dominion/juris/main.py 2>/dev/null \
+              || cat ~/dominion/juris/juris.py 2>/dev/null \
+              || echo "No main app file found"
+
+            echo ""
+            echo "=============================="
+            echo "  ALL .PY FILES IN JURIS DIR"
+            echo "=============================="
+            find ~/dominion/juris -name "*.py" \
+              -not -path "*/__pycache__/*" \
+              -not -path "*/site-packages/*" 2>/dev/null | sort
+
+            echo ""
+            echo "=============================="
+            echo "  JURIS — ALL PY FILE CONTENTS"
+            echo "=============================="
+            find ~/dominion/juris -name "*.py" \
+              -not -path "*/__pycache__/*" \
+              -not -path "*/site-packages/*" 2>/dev/null | sort | while read f; do
+                echo ""
+                echo "--- FILE: $f ---"
+                cat "$f"
+            done
+
+            echo ""
+            echo "=============================="
+            echo "  JURIST RECENT LOGS"
+            echo "=============================="
+            journalctl -u dominion-juris -n 80 --no-pager 2>/dev/null \
+              || journalctl -u juris -n 80 --no-pager 2>/dev/null \
+              || echo "No journal logs found"
+
+            echo ""
+            echo "=============================="
+            echo "  JURIST CONFIG / .ENV"
+            echo "=============================="
+            cat ~/dominion/juris/.env 2>/dev/null \
+              || cat ~/dominion/juris/config.py 2>/dev/null \
+              || cat ~/dominion/juris/settings.py 2>/dev/null \
+              || echo "No config/env file found"
+
+            echo ""
+            echo "=============================="
+            echo "  JURIST REQUIREMENTS"
+            echo "=============================="
+            cat ~/dominion/juris/requirements.txt 2>/dev/null || echo "No requirements.txt"
+
+            echo ""
+            echo "=============================="
+            echo "  JURIST PORT / NETWORK"
+            echo "=============================="
+            ss -tlnp 2>/dev/null | grep -iE "juris" || true
+            grep -r "port\|PORT\|listen\|host" ~/dominion/juris/ \
+              --include="*.py" --include="*.env" --include="*.cfg" \
+              -not -path "*/__pycache__/*" 2>/dev/null | head -30 || echo "No port info found"
+
+            echo ""
+            echo "JURIST AUDIT COMPLETE"
