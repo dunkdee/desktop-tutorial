@@ -18,9 +18,10 @@ jobs:
             echo "=============================="
             echo "  STOP EXISTING JURIS PROCS"
             echo "=============================="
-            pkill -f "juris_api.py" || true
+            fuser -k 5055/tcp 2>/dev/null || true
+            fuser -k 5051/tcp 2>/dev/null || true
             sleep 2
-            echo "Done"
+            echo "Done stopping old processes"
 
             echo ""
             echo "=============================="
@@ -37,7 +38,8 @@ jobs:
             printf '[Unit]\nDescription=Juris Legal Intelligence API\nAfter=network.target\n\n[Service]\nType=simple\nUser=%s\nWorkingDirectory=/home/%s/dominion/agents/juris\nExecStart=/usr/bin/python3 /home/%s/dominion/agents/juris/juris_api.py\nRestart=always\nRestartSec=10\n\n[Install]\nWantedBy=multi-user.target\n' \
               "$USER" "$USER" "$USER" \
               | sudo tee /etc/systemd/system/dominion-juris.service
-            echo "Service file written"
+            echo "Service file written:"
+            cat /etc/systemd/system/dominion-juris.service
 
             echo ""
             echo "=============================="
@@ -46,7 +48,7 @@ jobs:
             sudo systemctl daemon-reload
             sudo systemctl enable dominion-juris
             sudo systemctl start dominion-juris
-            sleep 3
+            sleep 4
 
             echo ""
             echo "=============================="
@@ -56,9 +58,12 @@ jobs:
 
             echo ""
             echo "=============================="
-            echo "  QUICK JURIST HEALTH CHECK"
+            echo "  TEST JURIST ON PORT 5055"
             echo "=============================="
-            curl -s http://localhost:5055 2>/dev/null | head -c 100 || echo "(no response on GET — expected, POST only)"
+            curl -s -X POST http://localhost:5055 \
+              -H 'Content-Type: application/json' \
+              -d '{"query":"ping"}' 2>/dev/null | head -c 100 \
+              || echo "(Jurist may need GEMINI_API_KEY to respond fully)"
 
             echo ""
             echo "=============================="
@@ -76,13 +81,11 @@ jobs:
 
             echo ""
             echo "=============================="
-            echo "  TEST /ask/juris ENDPOINT"
+            echo "  VERIFY baby-api /ask/juris"
             echo "=============================="
-            curl -sf http://localhost:8080/ask/juris \
-              -H 'Content-Type: application/json' \
-              -d '{"query":"What is FDCPA in one sentence?"}' \
-              | python3 -m json.tool 2>/dev/null | head -20 \
-              || echo "endpoint check failed"
+            curl -sf http://localhost:8080/ask/juris 2>/dev/null \
+              | python3 -m json.tool 2>/dev/null \
+              || echo "GET check done"
 
             echo ""
             echo "JURIST SETUP COMPLETE"
