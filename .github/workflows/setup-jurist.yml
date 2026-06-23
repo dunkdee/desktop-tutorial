@@ -1,0 +1,88 @@
+name: Setup Jurist — Systemd Service + Baby-API Endpoint
+
+on:
+  workflow_dispatch:
+
+jobs:
+  setup:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Install Jurist as systemd service and wire into baby-api
+        uses: appleboy/ssh-action@v1.2.0
+        with:
+          host: ${{ secrets.VM_HOST }}
+          username: ${{ secrets.VM_USER }}
+          key: ${{ secrets.VM_SSH_KEY }}
+          command_timeout: 5m
+          script: |
+            echo "=============================="
+            echo "  STOP EXISTING JURIS PROCS"
+            echo "=============================="
+            pkill -f "juris_api.py" || true
+            sleep 2
+            echo "Done"
+
+            echo ""
+            echo "=============================="
+            echo "  PATCH: BIND 0.0.0.0 (was 127.0.0.1)"
+            echo "=============================="
+            sed -i 's/HTTPServer(("127.0.0.1"/HTTPServer(("0.0.0.0"/g' \
+              ~/dominion/agents/juris/juris_api.py
+            grep "HTTPServer" ~/dominion/agents/juris/juris_api.py
+
+            echo ""
+            echo "=============================="
+            echo "  CREATE SYSTEMD SERVICE"
+            echo "=============================="
+            printf '[Unit]\nDescription=Juris Legal Intelligence API\nAfter=network.target\n\n[Service]\nType=simple\nUser=%s\nWorkingDirectory=/home/%s/dominion/agents/juris\nExecStart=/usr/bin/python3 /home/%s/dominion/agents/juris/juris_api.py\nRestart=always\nRestartSec=10\n\n[Install]\nWantedBy=multi-user.target\n' \
+              "$USER" "$USER" "$USER" \
+              | sudo tee /etc/systemd/system/dominion-juris.service
+            echo "Service file written"
+
+            echo ""
+            echo "=============================="
+            echo "  ENABLE + START"
+            echo "=============================="
+            sudo systemctl daemon-reload
+            sudo systemctl enable dominion-juris
+            sudo systemctl start dominion-juris
+            sleep 3
+
+            echo ""
+            echo "=============================="
+            echo "  JURIST STATUS"
+            echo "=============================="
+            sudo systemctl status dominion-juris --no-pager
+
+            echo ""
+            echo "=============================="
+            echo "  QUICK JURIST HEALTH CHECK"
+            echo "=============================="
+            curl -s http://localhost:5055 2>/dev/null | head -c 100 || echo "(no response on GET — expected, POST only)"
+
+            echo ""
+            echo "=============================="
+            echo "  GIT PULL desktop-tutorial"
+            echo "=============================="
+            cd ~/desktop-tutorial && git pull origin main
+
+            echo ""
+            echo "=============================="
+            echo "  RESTART BABY-API"
+            echo "=============================="
+            cd ~/desktop-tutorial && docker compose up -d baby-api
+            echo "Waiting 20s for baby-api startup..."
+            sleep 20
+
+            echo ""
+            echo "=============================="
+            echo "  TEST /ask/juris ENDPOINT"
+            echo "=============================="
+            curl -sf http://localhost:8080/ask/juris \
+              -H 'Content-Type: application/json' \
+              -d '{"query":"What is FDCPA in one sentence?"}' \
+              | python3 -m json.tool 2>/dev/null | head -20 \
+              || echo "endpoint check failed"
+
+            echo ""
+            echo "JURIST SETUP COMPLETE"

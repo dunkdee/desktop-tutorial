@@ -134,6 +134,33 @@ def binance():
     r = requests.get("https://api.binance.us/api/v3/time", timeout=20)
     return (r.json(), r.status_code)
 
+@app.route("/ask/juris", methods=["GET", "POST"])
+def ask_juris():
+    if request.method == "GET":
+        return jsonify({
+            "agent": "JURIS",
+            "status": "legal intelligence online",
+            "scope": ["trust_formation", "FDCPA", "FCRA", "surplus_recovery"],
+            "usage": "POST {\"query\": \"your legal question\", \"mode\": \"general\"}"
+        })
+    data = request.get_json(force=True, silent=True) or {}
+    query = data.get("query") or data.get("q", "")
+    if not query:
+        return jsonify(error="query is required"), 400
+    mode = data.get("mode", "general")
+    try:
+        r = requests.post(
+            "http://172.17.0.1:5055",
+            json={"query": query, "mode": mode},
+            timeout=120,
+        )
+        return jsonify(r.json()), r.status_code
+    except Exception as e:
+        return jsonify({
+            "error": str(e),
+            "hint": "Jurist not reachable — check: systemctl status dominion-juris"
+        }), 503
+
 @app.route("/vault/inbox", methods=["POST"])
 def vault_inbox():
     try:
