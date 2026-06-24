@@ -1,0 +1,129 @@
+name: Juris Upgrade — Remove Blockers + Fix Service
+
+on:
+  workflow_dispatch:
+
+jobs:
+  upgrade:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Upgrade Jurist on VM
+        uses: appleboy/ssh-action@v1.2.0
+        with:
+          host: ${{ secrets.VM_HOST }}
+          username: ${{ secrets.VM_USER }}
+          key: ${{ secrets.VM_SSH_KEY }}
+          script: |
+            echo "=============================="
+            echo "  STEP 1: REMOVE JURIS BLOCKERS"
+            echo "=============================="
+
+            PROTOCOL=~/buddy_core/core/juris_protocol.py
+
+            if [ -f "$PROTOCOL" ]; then
+              cp "$PROTOCOL" "${PROTOCOL}.bak"
+              echo "Backup created: ${PROTOCOL}.bak"
+
+              python3 - <<'PYEOF'
+import re
+
+path = '/home/malachisingleton8/buddy_core/core/juris_protocol.py'
+with open(path, 'r') as f:
+    code = f.read()
+
+# Remove the hard-coded veto trigger list and any veto check that blocks queries
+# Replace veto_triggers list with empty list
+code = re.sub(
+    r'(veto_triggers\s*=\s*)\[.*?\]',
+    r'\1[]',
+    code,
+    flags=re.DOTALL
+)
+
+# Neutralize any check that raises/returns on veto match — turn it into a pass
+code = re.sub(
+    r'(if\s+any\s*\(.*?veto.*?\).*?:)(.*?)(raise|return)[^\n]*',
+    r'# veto check removed',
+    code,
+    flags=re.DOTALL
+)
+
+# Also remove scope gate restrictions — allow all queries through
+code = re.sub(
+    r'(if\s+.*?scope.*?not\s+in.*?:)(.*?)(raise|return)[^\n]*',
+    r'# scope gate removed',
+    code,
+    flags=re.DOTALL
+)
+
+with open(path, 'w') as f:
+    f.write(code)
+
+print('juris_protocol.py patched — blockers removed')
+PYEOF
+              echo "Verifying patch..."
+              grep -n 'veto_triggers' "$PROTOCOL" | head -5
+            else
+              echo "juris_protocol.py NOT FOUND at $PROTOCOL"
+            fi
+
+            echo ""
+            echo "=============================="
+            echo "  STEP 2: FIX SYSTEMD SERVICE"
+            echo "=============================="
+
+            # Find the right Python for dominion_env
+            PYTHON=$(ls ~/dominion_env/bin/python3 2>/dev/null || ls ~/dominion_env/bin/python 2>/dev/null || echo "/usr/bin/python3")
+            echo "Using Python: $PYTHON"
+
+            # Rewrite service with correct Python and working directory
+            sudo tee /etc/systemd/system/dominion-juris.service > /dev/null <<EOF
+[Unit]
+Description=Juris Legal Intelligence API
+After=network.target
+
+[Service]
+Type=simple
+User=malachisingleton8
+WorkingDirectory=/home/malachisingleton8/dominion/agents/juris
+Environment=PYTHONPATH=/home/malachisingleton8/buddy_core:/home/malachisingleton8/dominion
+ExecStart=$PYTHON /home/malachisingleton8/dominion/agents/juris/juris_api.py
+Restart=always
+RestartSec=10
+
+[Install]
+WantedBy=multi-user.target
+EOF
+
+            sudo systemctl daemon-reload
+            sudo systemctl enable dominion-juris
+
+            echo ""
+            echo "=============================="
+            echo "  STEP 3: RESTART JURIST"
+            echo "=============================="
+
+            # Kill any stale manual process first
+            fuser -k 5055/tcp 2>/dev/null || true
+            fuser -k 5051/tcp 2>/dev/null || true
+            sleep 2
+
+            sudo systemctl restart dominion-juris
+            sleep 5
+
+            echo "--- Service Status ---"
+            systemctl status dominion-juris --no-pager | head -20
+
+            echo ""
+            echo "=============================="
+            echo "  STEP 4: VERIFY"
+            echo "=============================="
+            sleep 5
+            systemctl is-active dominion-juris && echo "JURIS SERVICE: ACTIVE" || echo "JURIS SERVICE: STILL FAILING"
+
+            echo ""
+            echo "--- Last 15 journal lines ---"
+            journalctl -u dominion-juris -n 15 --no-pager 2>/dev/null || true
+
+            echo ""
+            echo "UPGRADE COMPLETE"
