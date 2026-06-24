@@ -1,4 +1,4 @@
-name: Juris Upgrade — Remove Blockers + Fix Service
+name: Juris Upgrade - Remove Blockers + Fix Service
 
 on:
   workflow_dispatch:
@@ -14,70 +14,57 @@ jobs:
           username: ${{ secrets.VM_USER }}
           key: ${{ secrets.VM_SSH_KEY }}
           script: |
-            echo "=============================="
+            echo "============================="
             echo "  STEP 1: REMOVE JURIS BLOCKERS"
-            echo "=============================="
+            echo "============================="
 
             PROTOCOL=~/buddy_core/core/juris_protocol.py
 
             if [ -f "$PROTOCOL" ]; then
               cp "$PROTOCOL" "${PROTOCOL}.bak"
-              echo "Backup created: ${PROTOCOL}.bak"
+              echo "Backup: ${PROTOCOL}.bak"
 
-              python3 - <<'PYEOF'
-import re
-
+              # Write patch script to temp file
+              cat > /tmp/patch_juris.py << 'PATCH'
+import re, sys
 path = '/home/malachisingleton8/buddy_core/core/juris_protocol.py'
 with open(path, 'r') as f:
     code = f.read()
 
-# Remove the hard-coded veto trigger list and any veto check that blocks queries
-# Replace veto_triggers list with empty list
-code = re.sub(
-    r'(veto_triggers\s*=\s*)\[.*?\]',
-    r'\1[]',
-    code,
-    flags=re.DOTALL
-)
+# Empty the veto_triggers list
+code = re.sub(r'(veto_triggers\s*=\s*)\[.*?\]', r'\1[]', code, flags=re.DOTALL)
 
-# Neutralize any check that raises/returns on veto match — turn it into a pass
+# Comment out any block that checks veto triggers and raises/returns
 code = re.sub(
-    r'(if\s+any\s*\(.*?veto.*?\).*?:)(.*?)(raise|return)[^\n]*',
-    r'# veto check removed',
-    code,
-    flags=re.DOTALL
-)
-
-# Also remove scope gate restrictions — allow all queries through
-code = re.sub(
-    r'(if\s+.*?scope.*?not\s+in.*?:)(.*?)(raise|return)[^\n]*',
-    r'# scope gate removed',
-    code,
-    flags=re.DOTALL
+    r'(if\s+any\(.*?veto.*?\).*?:\s*\n)(\s+)(raise|return)[^\n]*',
+    r'# veto check removed\n',
+    code, flags=re.DOTALL
 )
 
 with open(path, 'w') as f:
     f.write(code)
+print('PATCHED: veto_triggers cleared')
+PATCH
 
-print('juris_protocol.py patched — blockers removed')
-PYEOF
-              echo "Verifying patch..."
+              python3 /tmp/patch_juris.py
               grep -n 'veto_triggers' "$PROTOCOL" | head -5
+              rm /tmp/patch_juris.py
             else
-              echo "juris_protocol.py NOT FOUND at $PROTOCOL"
+              echo "NOT FOUND: $PROTOCOL"
             fi
 
             echo ""
-            echo "=============================="
+            echo "============================="
             echo "  STEP 2: FIX SYSTEMD SERVICE"
-            echo "=============================="
+            echo "============================="
 
-            # Find the right Python for dominion_env
-            PYTHON=$(ls ~/dominion_env/bin/python3 2>/dev/null || ls ~/dominion_env/bin/python 2>/dev/null || echo "/usr/bin/python3")
-            echo "Using Python: $PYTHON"
+            PYTHON="/home/malachisingleton8/dominion_env/bin/python3"
+            if [ ! -f "$PYTHON" ]; then
+              PYTHON=$(which python3)
+            fi
+            echo "Python: $PYTHON"
 
-            # Rewrite service with correct Python and working directory
-            sudo tee /etc/systemd/system/dominion-juris.service > /dev/null <<EOF
+            sudo tee /etc/systemd/system/dominion-juris.service > /dev/null << 'SVCEOF'
 [Unit]
 Description=Juris Legal Intelligence API
 After=network.target
@@ -87,43 +74,44 @@ Type=simple
 User=malachisingleton8
 WorkingDirectory=/home/malachisingleton8/dominion/agents/juris
 Environment=PYTHONPATH=/home/malachisingleton8/buddy_core:/home/malachisingleton8/dominion
-ExecStart=$PYTHON /home/malachisingleton8/dominion/agents/juris/juris_api.py
+ExecStartPre=/bin/bash -c 'fuser -k 5055/tcp 2>/dev/null; fuser -k 5051/tcp 2>/dev/null; true'
 Restart=always
 RestartSec=10
 
 [Install]
 WantedBy=multi-user.target
-EOF
+SVCEOF
+
+            # Inject correct Python path into service file
+            sudo sed -i "s|^ExecStart=.*|ExecStart=$PYTHON /home/malachisingleton8/dominion/agents/juris/juris_api.py|" /etc/systemd/system/dominion-juris.service
+            sudo sed -i "/ExecStartPre/a ExecStart=$PYTHON /home/malachisingleton8/dominion/agents/juris/juris_api.py" /etc/systemd/system/dominion-juris.service 2>/dev/null || true
+
+            echo "--- Service file ---"
+            cat /etc/systemd/system/dominion-juris.service
 
             sudo systemctl daemon-reload
             sudo systemctl enable dominion-juris
 
             echo ""
-            echo "=============================="
+            echo "============================="
             echo "  STEP 3: RESTART JURIST"
-            echo "=============================="
+            echo "============================="
 
-            # Kill any stale manual process first
             fuser -k 5055/tcp 2>/dev/null || true
             fuser -k 5051/tcp 2>/dev/null || true
             sleep 2
 
             sudo systemctl restart dominion-juris
-            sleep 5
+            sleep 8
 
-            echo "--- Service Status ---"
             systemctl status dominion-juris --no-pager | head -20
 
             echo ""
-            echo "=============================="
-            echo "  STEP 4: VERIFY"
-            echo "=============================="
-            sleep 5
-            systemctl is-active dominion-juris && echo "JURIS SERVICE: ACTIVE" || echo "JURIS SERVICE: STILL FAILING"
+            echo "============================="
+            echo "  STEP 4: JOURNAL ERRORS"
+            echo "============================="
+            journalctl -u dominion-juris -n 20 --no-pager 2>/dev/null || true
 
             echo ""
-            echo "--- Last 15 journal lines ---"
-            journalctl -u dominion-juris -n 15 --no-pager 2>/dev/null || true
-
-            echo ""
-            echo "UPGRADE COMPLETE"
+            systemctl is-active dominion-juris && echo "JURIS: ACTIVE" || echo "JURIS: FAILED - check journal above"
+            echo "UPGRADE DONE"
