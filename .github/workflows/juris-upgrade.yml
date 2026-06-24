@@ -15,33 +15,40 @@ jobs:
           key: ${{ secrets.VM_SSH_KEY }}
           script: |
             echo "===== STEP 1: REMOVE JURIS BLOCKERS ====="
-            PROTOCOL=~/buddy_core/core/juris_protocol.py
+            PROTOCOL=$HOME/buddy_core/core/juris_protocol.py
             if [ -f "$PROTOCOL" ]; then
               cp "$PROTOCOL" "${PROTOCOL}.bak"
-              python3 -c "
-import re
-path = '$HOME/buddy_core/core/juris_protocol.py'
-with open(path) as f: code = f.read()
-code = re.sub(r'(veto_triggers\\s*=\\s*)\\[.*?\\]', r'\\1[]', code, flags=re.DOTALL)
-code = re.sub(r'if any\\(.*?veto.*?\\).*?:[^\\n]*\\n[^\\n]*(raise|return)[^\\n]*', '# veto removed', code, flags=re.DOTALL)
-with open(path, 'w') as f: f.write(code)
-print('PATCHED')
-"
-              grep -n 'veto_triggers' "$PROTOCOL" | head -5
+              sed -i 's/veto_triggers = \[.*\]/veto_triggers = []/g' "$PROTOCOL" || true
+              python3 -c 'import re; path="'"'"'$HOME/buddy_core/core/juris_protocol.py'"'"'"; f=open(path); c=f.read(); f.close(); c=re.sub(r"veto_triggers\s*=\s*\[.*?\]", "veto_triggers = []", c, flags=re.DOTALL); open(path,"w").write(c); print("PATCHED")'
+              grep -n 'veto_triggers' "$PROTOCOL" | head -3
             else
               echo "NOT FOUND: $PROTOCOL"
             fi
 
             echo "===== STEP 2: FIX SYSTEMD SERVICE ====="
-            PYTHON="/home/malachisingleton8/dominion_env/bin/python3"
+            PYTHON=$HOME/dominion_env/bin/python3
             [ -f "$PYTHON" ] || PYTHON=$(which python3)
-            echo "Using: $PYTHON"
+            echo "Python: $PYTHON"
 
-            printf '[Unit]\nDescription=Juris Legal Intelligence API\nAfter=network.target\n\n[Service]\nType=simple\nUser=malachisingleton8\nWorkingDirectory=/home/malachisingleton8/dominion/agents/juris\nEnvironment=PYTHONPATH=/home/malachisingleton8/buddy_core:/home/malachisingleton8/dominion\nExecStartPre=/bin/bash -c "fuser -k 5055/tcp 2>/dev/null; fuser -k 5051/tcp 2>/dev/null; sleep 1"\nExecStart=%s /home/malachisingleton8/dominion/agents/juris/juris_api.py\nRestart=always\nRestartSec=10\n\n[Install]\nWantedBy=multi-user.target\n' "$PYTHON" | sudo tee /etc/systemd/system/dominion-juris.service > /dev/null
+            SERVICE_FILE=/etc/systemd/system/dominion-juris.service
+            echo '[Unit]' | sudo tee $SERVICE_FILE
+            echo 'Description=Juris Legal Intelligence API' | sudo tee -a $SERVICE_FILE
+            echo 'After=network.target' | sudo tee -a $SERVICE_FILE
+            echo '' | sudo tee -a $SERVICE_FILE
+            echo '[Service]' | sudo tee -a $SERVICE_FILE
+            echo 'Type=simple' | sudo tee -a $SERVICE_FILE
+            echo 'User=malachisingleton8' | sudo tee -a $SERVICE_FILE
+            echo 'WorkingDirectory=/home/malachisingleton8/dominion/agents/juris' | sudo tee -a $SERVICE_FILE
+            echo 'Environment=PYTHONPATH=/home/malachisingleton8/buddy_core:/home/malachisingleton8/dominion' | sudo tee -a $SERVICE_FILE
+            echo "ExecStart=$PYTHON /home/malachisingleton8/dominion/agents/juris/juris_api.py" | sudo tee -a $SERVICE_FILE
+            echo 'Restart=always' | sudo tee -a $SERVICE_FILE
+            echo 'RestartSec=10' | sudo tee -a $SERVICE_FILE
+            echo '' | sudo tee -a $SERVICE_FILE
+            echo '[Install]' | sudo tee -a $SERVICE_FILE
+            echo 'WantedBy=multi-user.target' | sudo tee -a $SERVICE_FILE
 
             echo "--- Service file ---"
-            cat /etc/systemd/system/dominion-juris.service
-
+            cat $SERVICE_FILE
             sudo systemctl daemon-reload
             sudo systemctl enable dominion-juris
 
@@ -52,9 +59,6 @@ print('PATCHED')
             sudo systemctl restart dominion-juris
             sleep 8
             systemctl status dominion-juris --no-pager | head -20
-
-            echo "===== STEP 4: JOURNAL ====="
             journalctl -u dominion-juris -n 20 --no-pager 2>/dev/null || true
-
             systemctl is-active dominion-juris && echo "JURIS: ACTIVE" || echo "JURIS: FAILED"
-            echo "UPGRADE DONE"
+            echo "DONE"
