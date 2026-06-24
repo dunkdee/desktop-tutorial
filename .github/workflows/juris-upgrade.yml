@@ -14,77 +14,30 @@ jobs:
           username: ${{ secrets.VM_USER }}
           key: ${{ secrets.VM_SSH_KEY }}
           script: |
-            echo "============================="
-            echo "  STEP 1: REMOVE JURIS BLOCKERS"
-            echo "============================="
-
+            echo "===== STEP 1: REMOVE JURIS BLOCKERS ====="
             PROTOCOL=~/buddy_core/core/juris_protocol.py
-
             if [ -f "$PROTOCOL" ]; then
               cp "$PROTOCOL" "${PROTOCOL}.bak"
-              echo "Backup: ${PROTOCOL}.bak"
-
-              # Write patch script to temp file
-              cat > /tmp/patch_juris.py << 'PATCH'
-import re, sys
-path = '/home/malachisingleton8/buddy_core/core/juris_protocol.py'
-with open(path, 'r') as f:
-    code = f.read()
-
-# Empty the veto_triggers list
-code = re.sub(r'(veto_triggers\s*=\s*)\[.*?\]', r'\1[]', code, flags=re.DOTALL)
-
-# Comment out any block that checks veto triggers and raises/returns
-code = re.sub(
-    r'(if\s+any\(.*?veto.*?\).*?:\s*\n)(\s+)(raise|return)[^\n]*',
-    r'# veto check removed\n',
-    code, flags=re.DOTALL
-)
-
-with open(path, 'w') as f:
-    f.write(code)
-print('PATCHED: veto_triggers cleared')
-PATCH
-
-              python3 /tmp/patch_juris.py
+              python3 -c "
+import re
+path = '$HOME/buddy_core/core/juris_protocol.py'
+with open(path) as f: code = f.read()
+code = re.sub(r'(veto_triggers\\s*=\\s*)\\[.*?\\]', r'\\1[]', code, flags=re.DOTALL)
+code = re.sub(r'if any\\(.*?veto.*?\\).*?:[^\\n]*\\n[^\\n]*(raise|return)[^\\n]*', '# veto removed', code, flags=re.DOTALL)
+with open(path, 'w') as f: f.write(code)
+print('PATCHED')
+"
               grep -n 'veto_triggers' "$PROTOCOL" | head -5
-              rm /tmp/patch_juris.py
             else
               echo "NOT FOUND: $PROTOCOL"
             fi
 
-            echo ""
-            echo "============================="
-            echo "  STEP 2: FIX SYSTEMD SERVICE"
-            echo "============================="
-
+            echo "===== STEP 2: FIX SYSTEMD SERVICE ====="
             PYTHON="/home/malachisingleton8/dominion_env/bin/python3"
-            if [ ! -f "$PYTHON" ]; then
-              PYTHON=$(which python3)
-            fi
-            echo "Python: $PYTHON"
+            [ -f "$PYTHON" ] || PYTHON=$(which python3)
+            echo "Using: $PYTHON"
 
-            sudo tee /etc/systemd/system/dominion-juris.service > /dev/null << 'SVCEOF'
-[Unit]
-Description=Juris Legal Intelligence API
-After=network.target
-
-[Service]
-Type=simple
-User=malachisingleton8
-WorkingDirectory=/home/malachisingleton8/dominion/agents/juris
-Environment=PYTHONPATH=/home/malachisingleton8/buddy_core:/home/malachisingleton8/dominion
-ExecStartPre=/bin/bash -c 'fuser -k 5055/tcp 2>/dev/null; fuser -k 5051/tcp 2>/dev/null; true'
-Restart=always
-RestartSec=10
-
-[Install]
-WantedBy=multi-user.target
-SVCEOF
-
-            # Inject correct Python path into service file
-            sudo sed -i "s|^ExecStart=.*|ExecStart=$PYTHON /home/malachisingleton8/dominion/agents/juris/juris_api.py|" /etc/systemd/system/dominion-juris.service
-            sudo sed -i "/ExecStartPre/a ExecStart=$PYTHON /home/malachisingleton8/dominion/agents/juris/juris_api.py" /etc/systemd/system/dominion-juris.service 2>/dev/null || true
+            printf '[Unit]\nDescription=Juris Legal Intelligence API\nAfter=network.target\n\n[Service]\nType=simple\nUser=malachisingleton8\nWorkingDirectory=/home/malachisingleton8/dominion/agents/juris\nEnvironment=PYTHONPATH=/home/malachisingleton8/buddy_core:/home/malachisingleton8/dominion\nExecStartPre=/bin/bash -c "fuser -k 5055/tcp 2>/dev/null; fuser -k 5051/tcp 2>/dev/null; sleep 1"\nExecStart=%s /home/malachisingleton8/dominion/agents/juris/juris_api.py\nRestart=always\nRestartSec=10\n\n[Install]\nWantedBy=multi-user.target\n' "$PYTHON" | sudo tee /etc/systemd/system/dominion-juris.service > /dev/null
 
             echo "--- Service file ---"
             cat /etc/systemd/system/dominion-juris.service
@@ -92,26 +45,16 @@ SVCEOF
             sudo systemctl daemon-reload
             sudo systemctl enable dominion-juris
 
-            echo ""
-            echo "============================="
-            echo "  STEP 3: RESTART JURIST"
-            echo "============================="
-
+            echo "===== STEP 3: RESTART JURIST ====="
             fuser -k 5055/tcp 2>/dev/null || true
             fuser -k 5051/tcp 2>/dev/null || true
             sleep 2
-
             sudo systemctl restart dominion-juris
             sleep 8
-
             systemctl status dominion-juris --no-pager | head -20
 
-            echo ""
-            echo "============================="
-            echo "  STEP 4: JOURNAL ERRORS"
-            echo "============================="
+            echo "===== STEP 4: JOURNAL ====="
             journalctl -u dominion-juris -n 20 --no-pager 2>/dev/null || true
 
-            echo ""
-            systemctl is-active dominion-juris && echo "JURIS: ACTIVE" || echo "JURIS: FAILED - check journal above"
+            systemctl is-active dominion-juris && echo "JURIS: ACTIVE" || echo "JURIS: FAILED"
             echo "UPGRADE DONE"
