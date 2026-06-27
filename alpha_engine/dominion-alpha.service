@@ -1,0 +1,15 @@
+[Unit]
+Description=Dominion Alpha Engine - Token Scanner + Paper Trader
+After=network.target
+
+[Service]
+Type=simple
+User=malachisingleton8
+WorkingDirectory=/home/malachisingleton8/dominion/alpha_engine
+EnvironmentFile=/home/malachisingleton8/dominion/alpha_engine/.env
+ExecStart=/home/malachisingleton8/dominion/alpha_engine/.venv/bin/uvicorn dominion_alpha.api:app --host 0.0.0.0 --port 8787
+Restart=always
+RestartSec=15
+
+[Install]
+WantedBy=multi-user.target
