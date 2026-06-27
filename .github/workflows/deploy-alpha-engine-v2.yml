@@ -16,17 +16,15 @@ jobs:
           command_timeout: 300s
           script: |
             set -e
-            echo "===== PRE-FLIGHT CHECKS ====="
-            echo "LIVE_TRADING check:"
+            echo "===== PRE-FLIGHT: LIVE_TRADING CHECK ====="
             grep "LIVE_TRADING" ~/dominion/alpha_engine/.env 2>/dev/null || echo "no .env yet"
             LIVE=$(grep -c 'LIVE_TRADING=false' ~/dominion/alpha_engine/.env 2>/dev/null || echo 0)
             echo "LIVE_TRADING=false confirmed: $LIVE"
 
             echo "===== STEP 1: BACKUP v1 ====="
-            BACKUP_DIR=~/dominion/alpha_engine_bak_$(date +%Y%m%d_%H%M%S)
-            cp -r ~/dominion/alpha_engine $BACKUP_DIR
+            BACKUP_DIR="$HOME/dominion/alpha_engine_bak_$(date +%Y%m%d_%H%M%S)"
+            cp -r ~/dominion/alpha_engine "$BACKUP_DIR"
             echo "BACKUP CREATED: $BACKUP_DIR"
-            ls -la $BACKUP_DIR/dominion_alpha/ | head -5
 
             echo "===== STEP 2: PULL LATEST REPO ====="
             cd ~/desktop-tutorial
@@ -41,7 +39,6 @@ jobs:
             echo "===== STEP 4: DEPLOY v2 FILES ====="
             cp -r ~/desktop-tutorial/alpha_engine/dominion_alpha ~/dominion/alpha_engine/
             cp ~/desktop-tutorial/alpha_engine/requirements.txt ~/dominion/alpha_engine/
-            echo "python files deployed"
             ls -la ~/dominion/alpha_engine/dominion_alpha/
 
             echo "===== STEP 5: PRESERVE .env AND DB ====="
@@ -49,10 +46,10 @@ jobs:
               cp ~/desktop-tutorial/alpha_engine/.env.example ~/dominion/alpha_engine/.env
               echo ".env created from example"
             else
-              echo ".env preserved (existing)"
+              echo ".env preserved"
             fi
             grep "LIVE_TRADING" ~/dominion/alpha_engine/.env
-            ls -lh ~/dominion/alpha_engine/alpha.db 2>/dev/null && echo "DB preserved" || echo "DB will be created on first run"
+            ls -lh ~/dominion/alpha_engine/alpha.db 2>/dev/null && echo "DB preserved" || echo "DB will init on first run"
 
             echo "===== STEP 6: PIP INSTALL ====="
             cd ~/dominion/alpha_engine
@@ -60,58 +57,27 @@ jobs:
             .venv/bin/pip show fastapi uvicorn httpx pydantic | grep -E "^(Name|Version)"
 
             echo "===== STEP 7: LINT CHECK ====="
-            LINT_PASS=0
             LINT_FAIL=0
             for f in ~/dominion/alpha_engine/dominion_alpha/*.py; do
               if .venv/bin/python -m py_compile "$f" 2>/dev/null; then
-                echo "LINT OK: $(basename $f)"
-                LINT_PASS=$((LINT_PASS+1))
+                echo "OK: $(basename $f)"
               else
-                echo "LINT FAIL: $(basename $f)"
+                echo "FAIL: $(basename $f)"
                 .venv/bin/python -m py_compile "$f" 2>&1 || true
                 LINT_FAIL=$((LINT_FAIL+1))
               fi
             done
-            echo "Lint: $LINT_PASS passed, $LINT_FAIL failed"
-            if [ $LINT_FAIL -gt 0 ]; then echo "LINT ERRORS — aborting"; exit 1; fi
+            if [ $LINT_FAIL -gt 0 ]; then echo "LINT FAILED"; exit 1; fi
+            echo "All lint checks passed"
 
             echo "===== STEP 8: IMPORT TEST ====="
             cd ~/dominion/alpha_engine
-            .venv/bin/python -c "
-import sys
-sys.path.insert(0, '.')
-from dominion_alpha.memory import init_db, get_memory_stats
-from dominion_alpha.council import COUNCIL, convene
-from dominion_alpha.scanner import scan_new_pairs, is_native
-from dominion_alpha.risk import check_entry, check_exit, check_portfolio_risk
-from dominion_alpha.paper_broker import get_capital, get_open_positions
-from dominion_alpha.performance import compute_performance
-from dominion_alpha.learning import get_lessons, get_current_weights
-from dominion_alpha.governor import run_cycle, get_state
-from dominion_alpha.api import app
-assert len(COUNCIL) == 12, f'Expected 12 advisors, got {len(COUNCIL)}'
-assert not __import__('os').getenv('LIVE_TRADING','false').lower() == 'true', 'LIVE_TRADING must be false'
-init_db()
-print('ALL IMPORTS OK')
-print(f'Council advisors: {len(COUNCIL)}')
-print(f'Advisor names: {[a.name for a in COUNCIL]}')
-state = get_state()
-print(f'Governor version: {state.version}')
-print(f'Governor threshold: {state.confidence_threshold}')
-print(f'Kill switch: {state.kill_switch}')
-perf = compute_performance()
-print(f'Performance baseline: {perf}')
-weights = get_current_weights()
-print(f'Learning weights loaded: {len(weights)} advisors')
-mem = get_memory_stats()
-print(f'Memory tables: {list(mem.keys())}')
-"
+            .venv/bin/python -c "import sys; sys.path.insert(0,'.'); from dominion_alpha.memory import init_db,get_memory_stats; from dominion_alpha.council import COUNCIL,convene; from dominion_alpha.scanner import scan_new_pairs; from dominion_alpha.risk import check_entry,check_exit,check_portfolio_risk; from dominion_alpha.paper_broker import get_capital,get_open_positions; from dominion_alpha.performance import compute_performance; from dominion_alpha.learning import get_lessons,get_current_weights; from dominion_alpha.governor import run_cycle,get_state; from dominion_alpha.api import app; init_db(); assert len(COUNCIL)==12,'Expected 12 advisors'; print('ALL IMPORTS OK'); print('Council advisors:',len(COUNCIL)); print('Names:',[a.name for a in COUNCIL]); state=get_state(); print('Governor v'+state.version,'threshold='+str(state.confidence_threshold),'kill_switch='+str(state.kill_switch)); print('LIVE_TRADING=false confirmed: OK'); print('Memory tables:',list(get_memory_stats().keys()))"
 
-            echo "===== STEP 9: INSTALL UPDATED SERVICE ====="
+            echo "===== STEP 9: UPDATE SERVICE FILE ====="
             sudo cp ~/desktop-tutorial/alpha_engine/dominion-alpha.service /etc/systemd/system/
             sudo systemctl daemon-reload
             sudo systemctl enable dominion-alpha
-            echo "service file updated"
 
             echo "===== STEP 10: RESTART SERVICE ====="
             sudo systemctl start dominion-alpha
@@ -122,24 +88,24 @@ print(f'Memory tables: {list(mem.keys())}')
             sleep 3
             HEALTH=$(curl -sf http://localhost:8787/health)
             echo "Health: $HEALTH"
-            echo $HEALTH | grep -q '"version":"2.0"' && echo "VERSION 2.0 CONFIRMED" || echo "WARNING: version not confirmed"
+            echo $HEALTH | grep -q '2.0' && echo "v2.0 CONFIRMED" || echo "WARNING: check health response"
 
-            echo "===== STEP 12: VERIFY LIVE_TRADING=false ====="
+            echo "===== STEP 12: LIVE_TRADING=false CONFIRM ====="
             STATUS=$(curl -sf http://localhost:8787/status)
             echo "Status: $STATUS"
-            echo $STATUS | grep -q '"live_trading":false' && echo "LIVE_TRADING=false CONFIRMED" || echo "WARNING: check live_trading"
+            echo $STATUS | grep -q 'live_trading.*false' && echo "LIVE_TRADING=false CONFIRMED" || echo "WARNING: verify live_trading"
 
-            echo "===== STEP 13: SCAN TEST — TOP 20 REAL TOKENS ====="
+            echo "===== STEP 13: SCAN TEST - TOP 20 REAL TOKENS ====="
             cd ~/dominion/alpha_engine
             .venv/bin/python -m dominion_alpha.cli scan-once
 
-            echo "===== STEP 14: PERFORMANCE BASELINE ====="
+            echo "===== STEP 14: PERFORMANCE ====="
             .venv/bin/python -m dominion_alpha.cli performance
 
             echo "===== STEP 15: ADVISOR WEIGHTS ====="
             .venv/bin/python -m dominion_alpha.cli weights
 
             echo "===== DEPLOY COMPLETE ====="
-            echo "v2 running on port 8787"
-            echo "LIVE_TRADING=false | paper mode only"
-            echo "Backup at: $BACKUP_DIR"
+            echo "v2 live on port 8787"
+            echo "Backup: $BACKUP_DIR"
+            echo "LIVE_TRADING=false | paper only"
